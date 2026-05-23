@@ -50,5 +50,6 @@
 - [x] Extend overlay: add 10px top extension "header"
 - [x] Improve movement: implement 120Hz continuous thrust and diagonal normalization
 - [x] Tune physics: align acceleration and top speed with "Snappy & Light" model
+- [x] Fix movement asymmetry: resolve positive direction lag caused by integer truncation
 - [x] Commit & Merge to main
 
