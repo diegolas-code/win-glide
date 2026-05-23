@@ -16,6 +16,7 @@
 - **High-Precision Position:** Refactored `App` to track window position using `f32` (`pos_x`, `pos_y`). Movement is accumulated in `f32` and only cast to `i32` when calling `SetWindowPos`.
 - **Timing Fix:** Passed the actual loop `dt` to the physics engine instead of using a hardcoded placeholder.
 - **Diagnostics:** Added `println!` logging to the `App` loop to trace hotkey activation and key presses.
+- **Keyboard Suppression:** Modified the `WH_KEYBOARD_LL` hook in `src/input.rs` to consume keyboard events (returning `LRESULT(1)`) when a session is active. This is controlled by a static atomic flag `IS_SESSION_ACTIVE` updated by the `App`.
 
 ## Troubleshooting Advice
 - Always ensure the thread that creates a Win32 window pumps its message queue.

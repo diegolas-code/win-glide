@@ -42,6 +42,7 @@
 - [x] Add idle timeout and exit condition checks
 - [x] Finalize multi-monitor edge case handling
 - [x] Fix window hang (message pump) and movement (f32 accumulation)
+- [x] Suppress keyboard input to target window during active session
 - [x] Finalize project README.md with usage and config info
 - [x] Commit & Merge to main
 

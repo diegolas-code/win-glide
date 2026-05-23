@@ -10,6 +10,7 @@
 - Identified root cause of movement failure: `i32` truncation of sub-pixel movement.
 - Implemented `pump_messages` in `App::run`.
 - Refactored `App` to use `f32` for position accumulation (`pos_x`, `pos_y`).
+- Implemented keyboard input suppression using a global atomic flag in the `WH_KEYBOARD_LL` hook.
 - Added diagnostic logging for input events.
 
 ## Next Steps
