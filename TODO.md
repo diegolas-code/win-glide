@@ -25,8 +25,9 @@
 - [x] Commit & Merge to main
 
 ## Phase 3: Physics & Movement
-- [ ] Implement the Physics Loop (60Hz/120Hz timer)
-- [ ] Integrate thrust, friction, and velocity calculations
+- [x] Implement the Physics Loop (60Hz/120Hz timer)
+- [x] Define Physics State (velocity, thrust, friction)
+- [ ] Integrate thrust, friction, and velocity calculations [In Progress]
 - [ ] Implement `SetWindowPos` movement logic with DPI normalization
 
 ## Phase 4: UI / Visuals
