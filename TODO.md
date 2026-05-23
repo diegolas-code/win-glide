@@ -17,7 +17,7 @@
 - [x] Commit & Merge to main
 
 ## Phase 2: Input & Hooks
-- [x] Implement global hotkey registration (`Ctrl + Shift + M`)
+- [x] Implement global hotkey registration (`Ctrl + Alt + F10`)
 - [x] Implement `WH_KEYBOARD_LL` hook for arrow key detection
 - [x] Implement `WH_MOUSE_LL` hook for delta tracking
 - [x] Add integration tests for input event processing

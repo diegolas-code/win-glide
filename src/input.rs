@@ -133,7 +133,7 @@ impl InputManager {
         let _ = set_event_sender(sender);
 
         // Use ID 1337 to avoid common conflicts, though the keys might still conflict.
-        let hotkey = HotkeyManager::new(1337, MOD_CONTROL | MOD_SHIFT, 0x4D)?;
+        let hotkey = HotkeyManager::new(1337, MOD_CONTROL | MOD_ALT, 0x79)?;
         let kbd_hook = KeyboardHook::new(keyboard_proc)?;
         let mouse_hook = MouseHook::new(mouse_proc)?;
 

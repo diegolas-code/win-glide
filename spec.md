@@ -27,12 +27,12 @@ win-glide is a high-performance Windows utility for rapid, momentum-based window
 ## 6. Technical Stack
 *   **Language:** Rust (Edition 2024).
 *   **OS APIs:** `windows-rs` (Win32).
-*   **Activation:** Global Hotkey (`RegisterHotKey`) set to `Ctrl + Shift + M`.
+*   **Activation:** Global Hotkey (`RegisterHotKey`) set to `Ctrl + Alt + F10`.
 *   **Hooks:** `WH_KEYBOARD_LL` and `WH_MOUSE_LL` (low-level, non-blocking).
 *   **Movement:** `SetWindowPos` with `SWP_NOACTIVATE | SWP_NOZORDER`.
 
 ## 7. Exit & Safety
-*   **Trigger:** `Ctrl + Shift + M` activates the movement session for the current foreground window.
+*   **Trigger:** `Ctrl + Alt + F10` activates the movement session for the current foreground window.
 *   **Explicit Exit:** `Esc` key, any alphanumeric key, or focus loss.
 ## 8. Engineering Standards & Workflow
 *   **Test-Driven Development (TDD):** Every feature must be accompanied by unit or integration tests to ensure reliability and easy debugging.

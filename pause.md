@@ -12,7 +12,7 @@
 - Handled `HotkeyManager`, `KeyboardHook`, and `MouseHook` with RAII.
 
 ## Next Steps
-- Implement `Ctrl + Shift + M` global hotkey.
+- Implement `Ctrl + Alt + F10` global hotkey.
 - Implement low-level keyboard (`WH_KEYBOARD_LL`) and mouse (`WH_MOUSE_LL`) hooks.
 - Set up thread-safe message queuing for input processing.
 
