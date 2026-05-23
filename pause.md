@@ -1,18 +1,18 @@
 # win-glide Pause State
 
-## Current Status: Refinement & Hygiene (v0.1.11-pre)
-Starting implementation of suggestions from `suggestions.md` to improve system stability and developer experience.
+## Current Status: Refinement Complete (v0.1.11)
+Successfully implemented system stability and hygiene improvements. Ready to merge to main.
 
 ### Completed Recently:
-- **Exit on Any Key:** Any key press other than arrow keys (and modifiers) now immediately terminates the glide session.
-- **Maximized Window Constraint:** Added a check to prevent gliding functionality when the active window is maximized.
-- **Advanced Flicker Reduction:** Implemented dynamic window ownership and added aggressive suppression flags.
+- **Graceful Shutdown:** Implemented `WM_QUIT` signaling for the input thread to ensure clean hook unregistration.
+- **Test Hygiene:** Gated system-level tests with `#[ignore]` for CI stability.
+- **Error Handling:** Added explicit logging for silent failures in input and config modules.
+- **Defensive UI:** Added checks for GDI resource allocation in the overlay module.
+- **Documentation:** Added Developer Notes to `README.md`.
 
 ### Next Steps / Future Ideas:
-- **Graceful Shutdown:** Implement `WM_QUIT` signaling for the input thread.
-- **Test Hygiene:** Ignore interactive tests in CI.
-- **Error Handling:** Add logging for silent failures in input and config modules.
 - **Visual Effects:** Add subtle pulsing or "fade-in" animation for the tint.
+- **Packaging:** Create a release build and simple installer.
 
 ## System Context:
 - Operating System: Windows 10/11

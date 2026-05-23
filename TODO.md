@@ -63,10 +63,10 @@
 - [x] Commit & Merge to main
 
 ## Phase 6: Refinement & Hygiene
-- [ ] Implement graceful input-thread shutdown
-- [ ] Gate system-level tests to avoid CI flakiness
-- [ ] Improve error handling for event delivery and config persistence
-- [ ] Add defensive checks for UI resource allocation
-- [ ] Update README.md with developer notes on testing and shutdown
-- [ ] Commit & Merge to main
+- [x] Implement graceful input-thread shutdown
+- [x] Gate system-level tests to avoid CI flakiness
+- [x] Improve error handling for event delivery and config persistence
+- [x] Add defensive checks for UI resource allocation
+- [x] Update README.md with developer notes on testing and shutdown
+- [x] Commit & Merge to main
 
