@@ -27,8 +27,8 @@
 ## Phase 3: Physics & Movement
 - [x] Implement the Physics Loop (60Hz/120Hz timer)
 - [x] Define Physics State (velocity, thrust, friction)
-- [ ] Integrate thrust, friction, and velocity calculations [In Progress]
-- [ ] Implement `SetWindowPos` movement logic with DPI normalization
+- [x] Integrate thrust, friction, and velocity calculations
+- [ ] Implement `SetWindowPos` movement logic with DPI normalization [In Progress]
 
 ## Phase 4: UI / Visuals
 - [ ] Create transparent layered window for the border

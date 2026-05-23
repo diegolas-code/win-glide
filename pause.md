@@ -7,8 +7,9 @@
 
 ## Last Actions
 - Implemented `PhysicsState` in `src/physics.rs` with acceleration and friction logic.
-- Implemented `App` in `src/app.rs` with a ~60FPS main loop and event processing.
+- Implemented `App` in `src/app.rs` with a ~120FPS main loop and event processing.
 - Wired up `InputManager` in a separate thread in `src/main.rs`.
+- Implemented session activation/deactivation and basic window movement using `SetWindowPos`.
 - Standardized the application name to lowercase `win-glide`.
 
 ## Next Steps
