@@ -4,9 +4,9 @@
 The application now features a dual-friction physics model for better acceleration and speed.
 
 ### Completed Recently:
-- **No Border Limits:** Removed monitor boundary clamping, allowing windows to move freely across the entire virtual desktop.
+- **Limited Off-Screen Movement:** Windows can now move partially off-screen, but are capped such that 50px always remains visible on the virtual desktop.
+- **No Border Limits:** Removed monitor boundary clamping.
 - **Physics Refinement:** Reduced acceleration to 3,000 pixels/s² for a smoother 1.33s spin-up time.
-- **Dual-Friction Model:** Implemented low friction during thrusting and high friction during coasting.
 
 ### Next Steps / Future Ideas:
 - **Visual Effects:** Add subtle pulsing or "fade-in" animation for the tint.

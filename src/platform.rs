@@ -30,6 +30,25 @@ impl Platform {
 
         monitors
     }
+
+    pub fn get_virtual_screen_rect() -> RECT {
+        use windows::Win32::UI::WindowsAndMessaging::{
+            GetSystemMetrics, SM_CXVIRTUALSCREEN, SM_CYVIRTUALSCREEN, SM_XVIRTUALSCREEN,
+            SM_YVIRTUALSCREEN,
+        };
+        unsafe {
+            let x = GetSystemMetrics(SM_XVIRTUALSCREEN);
+            let y = GetSystemMetrics(SM_YVIRTUALSCREEN);
+            let cx = GetSystemMetrics(SM_CXVIRTUALSCREEN);
+            let cy = GetSystemMetrics(SM_CYVIRTUALSCREEN);
+            RECT {
+                left: x,
+                top: y,
+                right: x + cx,
+                bottom: y + cy,
+            }
+        }
+    }
 }
 
 unsafe extern "system" fn enum_monitor_callback(

@@ -56,5 +56,6 @@
 - [x] Implement dual-friction model: allow reaching top speed while maintaining quick stop
 - [x] Refine physics: reduce acceleration for 1.33s spin-up time
 - [x] Remove monitor edge limits: allow free movement across virtual desktop
+- [x] Limit off-screen movement: ensure at least 50px of the window remains visible
 - [x] Commit & Merge to main
 

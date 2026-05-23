@@ -7,9 +7,6 @@ use crossbeam_channel::Receiver;
 use std::collections::HashSet;
 use std::time::{Duration, Instant};
 use windows::Win32::Foundation::{HWND, RECT};
-use windows::Win32::Graphics::Gdi::{
-    GetMonitorInfoW, MonitorFromWindow, MONITORINFO, MONITOR_DEFAULTTONEAREST,
-};
 use windows::Win32::UI::WindowsAndMessaging::{
     GetWindowRect, SetWindowPos, SWP_NOACTIVATE, SWP_NOSIZE, SWP_NOZORDER,
 };
@@ -216,10 +213,29 @@ impl App {
 
                 new_rect.left = self.pos_x.round() as i32;
                 new_rect.top = self.pos_y.round() as i32;
+
+                // Limit off-screen movement: at least 50px must stay visible on the virtual desktop
+                let vs = Platform::get_virtual_screen_rect();
+                let min_visible = 50;
+
+                // Clamp horizontal
+                if new_rect.left < vs.left - width + min_visible {
+                    new_rect.left = vs.left - width + min_visible;
+                } else if new_rect.left > vs.right - min_visible {
+                    new_rect.left = vs.right - min_visible;
+                }
+
+                // Clamp vertical
+                if new_rect.top < vs.top - height + min_visible {
+                    new_rect.top = vs.top - height + min_visible;
+                } else if new_rect.top > vs.bottom - min_visible {
+                    new_rect.top = vs.bottom - min_visible;
+                }
+
                 new_rect.right = new_rect.left + width;
                 new_rect.bottom = new_rect.top + height;
 
-                // Update our internal floats to match rounded ints
+                // Update our internal floats to match rounded/clamped ints
                 self.pos_x = new_rect.left as f32;
                 self.pos_y = new_rect.top as f32;
                 self.window_rect = new_rect;
