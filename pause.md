@@ -12,6 +12,7 @@ Successfully implemented system stability and hygiene improvements. Ready to mer
 
 ### Next Steps / Future Ideas:
 - **Visual Effects:** Add subtle pulsing or "fade-in" animation for the tint.
+- **Optimization:** Ensure it uses near-zero resources when idle.
 - **Packaging:** Create a release build and simple installer.
 
 ## System Context:
