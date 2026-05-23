@@ -1,14 +1,17 @@
 use crate::input::InputEvent;
 use crate::physics::{PhysicsConfig, PhysicsState, Vector2D};
+use crate::platform::Platform;
+use crate::ui::Overlay;
 use crate::window::get_active_window;
 use crossbeam_channel::Receiver;
 use std::time::{Duration, Instant};
 use windows::Win32::Foundation::{HWND, RECT};
-use windows::Win32::UI::WindowsAndMessaging::{GetWindowRect, SetWindowPos, SWP_NOACTIVATE, SWP_NOZORDER};
-
-use crate::platform::Platform;
-
-use crate::ui::Overlay;
+use windows::Win32::Graphics::Gdi::{
+    GetMonitorInfoW, MonitorFromWindow, MONITORINFO, MONITOR_DEFAULTTONEAREST,
+};
+use windows::Win32::UI::WindowsAndMessaging::{
+    GetWindowRect, SetWindowPos, SWP_NOACTIVATE, SWP_NOSIZE, SWP_NOZORDER,
+};
 
 pub struct App {
     physics: PhysicsState,
@@ -108,18 +111,21 @@ impl App {
                     self.active_window = Some(hwnd);
                     self.window_rect = rect;
                     self.dpi = Platform::get_dpi_for_window(hwnd);
-                    
+
                     // Scale physics config based on DPI (96 is standard)
                     let scale = self.dpi as f32 / 96.0;
                     self.physics.config.acceleration = 2000.0 * scale;
                     self.physics.config.top_speed = 1500.0 * scale;
-                    
+
                     self.physics.velocity = Vector2D::default();
-                    
+
                     let _ = self.overlay.redraw(self.window_rect);
                     self.overlay.show(true);
-                    
-                    println!("Session activated for window: {:?} (DPI: {})", hwnd, self.dpi);
+
+                    println!(
+                        "Session activated for window: {:?} (DPI: {})",
+                        hwnd, self.dpi
+                    );
                 }
             }
         }
@@ -140,7 +146,7 @@ impl App {
             0x27 => Vector2D { x: 1.0, y: 0.0 },
             0x28 => Vector2D { x: 0.0, y: 1.0 },
             0x1B => return false, // ESC
-            _ => return true, // Ignore other keys for now
+            _ => return true,      // Ignore other keys for now
         };
         self.physics.apply_thrust(thrust, 0.008);
         true
@@ -159,24 +165,63 @@ impl App {
                 let dy = (self.physics.velocity.y * dt) as i32;
 
                 if dx != 0 || dy != 0 {
-                    self.window_rect.left += dx;
-                    self.window_rect.right += dx;
-                    self.window_rect.top += dy;
-                    self.window_rect.bottom += dy;
+                    let mut new_rect = self.window_rect;
+                    new_rect.left += dx;
+                    new_rect.right += dx;
+                    new_rect.top += dy;
+                    new_rect.bottom += dy;
 
-                    unsafe {
-                        let _ = SetWindowPos(
-                            hwnd,
-                            HWND::default(),
-                            self.window_rect.left,
-                            self.window_rect.top,
-                            0,
-                            0,
-                            SWP_NOACTIVATE | SWP_NOZORDER | windows::Win32::UI::WindowsAndMessaging::SWP_NOSIZE,
-                        );
+                    // Clamp to work area
+                    self.clamp_to_work_area(hwnd, &mut new_rect);
+
+                    if new_rect.left != self.window_rect.left || new_rect.top != self.window_rect.top {
+                        self.window_rect = new_rect;
+                        unsafe {
+                            let _ = SetWindowPos(
+                                hwnd,
+                                HWND::default(),
+                                self.window_rect.left,
+                                self.window_rect.top,
+                                0,
+                                0,
+                                SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOSIZE,
+                            );
+                        }
+                        self.overlay.update_position(self.window_rect);
                     }
-                    
-                    self.overlay.update_position(self.window_rect);
+                }
+            }
+        }
+    }
+
+    fn clamp_to_work_area(&self, hwnd: HWND, rect: &mut RECT) {
+        unsafe {
+            let hmonitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+            let mut info = MONITORINFO {
+                cbSize: std::mem::size_of::<MONITORINFO>() as u32,
+                ..Default::default()
+            };
+
+            if GetMonitorInfoW(hmonitor, &mut info).as_bool() {
+                let work = info.rcWork;
+                let width = rect.right - rect.left;
+                let height = rect.bottom - rect.top;
+
+                if rect.left < work.left {
+                    rect.left = work.left;
+                    rect.right = rect.left + width;
+                }
+                if rect.right > work.right {
+                    rect.right = work.right;
+                    rect.left = rect.right - width;
+                }
+                if rect.top < work.top {
+                    rect.top = work.top;
+                    rect.bottom = rect.top + height;
+                }
+                if rect.bottom > work.bottom {
+                    rect.bottom = work.bottom;
+                    rect.top = rect.bottom - height;
                 }
             }
         }

@@ -1,15 +1,15 @@
 # Project Pause: `win-glide`
 
 ## Current Status
-- **Phase:** Phase 5: Configuration & Polish (In Progress).
+- **Phase:** Phase 5: Configuration & Polish Complete. Project is Feature-Complete.
 - **Branch:** `feat/config-system`
 - **Workflow:** TDD-driven, idiomatic Rust 2024.
 
 ## Last Actions
-- Implemented `Config` system in `src/config.rs` using `serde`.
-- Implemented idle timeout (3s) and focus-loss detection in `App`.
-- Integrated `Overlay` with `tiny-skia` rendering and smooth movement.
-- Verified all session lifecycle states (activate, move, idle-deactivate, focus-loss-deactivate).
+- Implemented `Config` system (JSON) for physics and hotkeys.
+- Implemented idle timeout (3s), focus-loss detection, and boundary clamping.
+- Finalized multi-monitor support with work-area awareness.
+- Verified all core features: hotkey activation, physics-based movement, visual overlay, and safe deactivation.
 
 ## Next Steps
 - Implement `serde` based JSON config loading.

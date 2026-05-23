@@ -40,4 +40,5 @@
 ## Phase 5: Configuration & Polish
 - [x] Implement `serde` based JSON config loading
 - [x] Add idle timeout and exit condition checks
-- [ ] Finalize multi-monitor edge case handling [In Progress]
+- [x] Finalize multi-monitor edge case handling
+- [ ] Commit & Merge to main
