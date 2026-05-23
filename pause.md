@@ -1,13 +1,12 @@
 # win-glide Pause State
 
-## Current Status: Movement Improved (v0.1.6)
-The application now features smooth 120Hz continuous movement, tuned physics, and perfectly symmetric speed.
+## Current Status: Shutdown Improved (v0.1.7)
+The application now exits gracefully on Ctrl+C.
 
 ### Completed Recently:
-- **Asymmetry Fix:** Resolved issue where movement was faster left/up than right/down by switching to rounded integer conversion and removing redundant position checks.
-- **Continuous Thrust:** Implemented state-based key tracking to allow smooth 120Hz acceleration.
-- **Diagonal Normalization:** Fixed issue where diagonal movement was faster than cardinal movement.
-- **Physics Tuning:** Increased acceleration (10,000) and top speed (2,500) to match the "Snappy & Light" spec.
+- **Graceful Shutdown:** Added a Windows console control handler to catch Ctrl+C and shut down the application cleanly.
+- **Asymmetry Fix:** Resolved issue where movement was faster left/up than right/down.
+- **Continuous Thrust:** Implemented state-based key tracking for smooth 120Hz acceleration.
 
 ### Next Steps / Future Ideas:
 - **Visual Effects:** Add subtle pulsing or "fade-in" animation for the tint.

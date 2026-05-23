@@ -15,17 +15,35 @@ pub enum InputEvent {
     KeyDown(u32),
     KeyUp(u32),
     MouseButtonDown,
+    Shutdown,
 }
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::OnceLock;
 use crossbeam_channel::Sender;
+use windows::Win32::System::Console::{SetConsoleCtrlHandler, CTRL_C_EVENT};
 
 static EVENT_SENDER: OnceLock<Sender<InputEvent>> = OnceLock::new();
 static IS_SESSION_ACTIVE: AtomicBool = AtomicBool::new(false);
 
 pub fn set_event_sender(sender: Sender<InputEvent>) {
     let _ = EVENT_SENDER.set(sender);
+}
+
+pub fn register_shutdown_handler() -> windows::core::Result<()> {
+    unsafe {
+        SetConsoleCtrlHandler(Some(console_ctrl_handler), true)?;
+    }
+    Ok(())
+}
+
+unsafe extern "system" fn console_ctrl_handler(ctrl_type: u32) -> windows::Win32::Foundation::BOOL {
+    if ctrl_type == CTRL_C_EVENT {
+        println!("\nShutdown signal received (Ctrl+C)");
+        emit_event(InputEvent::Shutdown);
+        return windows::Win32::Foundation::BOOL(1); // Handle the event
+    }
+    windows::Win32::Foundation::BOOL(0)
 }
 
 pub fn set_session_active(active: bool) {

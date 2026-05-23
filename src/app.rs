@@ -26,6 +26,7 @@ pub struct App {
     dpi: u32,
     overlay: Overlay,
     pressed_keys: HashSet<u32>,
+    running: bool,
 }
 
 impl App {
@@ -42,13 +43,14 @@ impl App {
             dpi: 96,
             overlay: Overlay::new().expect("Failed to create Overlay"),
             pressed_keys: HashSet::new(),
+            running: true,
         }
     }
 
     pub fn run(&mut self) {
         let frame_duration = Duration::from_millis(8); // ~120 FPS for smoother movement
 
-        loop {
+        while self.running {
             let now = Instant::now();
             let dt = now.duration_since(self.last_update).as_secs_f32();
             self.last_update = now;
@@ -68,6 +70,8 @@ impl App {
                 std::thread::sleep(frame_duration - elapsed);
             }
         }
+        
+        println!("App: Graceful shutdown complete.");
     }
 
     fn pump_messages(&mut self) {
@@ -127,6 +131,11 @@ impl App {
                 InputEvent::MouseButtonDown => {
                     println!("Mouse click detected, deactivating");
                     self.deactivate_session();
+                }
+                InputEvent::Shutdown => {
+                    println!("App: Shutdown event received");
+                    self.deactivate_session();
+                    self.running = false;
                 }
             }
         }
