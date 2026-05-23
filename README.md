@@ -16,11 +16,13 @@ The project has completed **Phase 1: Foundation**.
 - [x] Automated CI pipeline (GitHub Actions).
 - [ ] Phase 2: Input & Hooks (In Progress).
 
-## Prerequisites
-To build and run Win-Glide, you need:
-- **Windows 10/11** (Uses Win32 APIs).
-- **Rust Toolchain:** Install via [rustup.rs](https://rustup.rs/). Use the **2024 Edition**.
-- **Git:** For version control.
+## Build & Run Requirements
+This project targets Windows 10/11 on x86_64 and needs:
+
+- A recent Rust toolchain with `cargo`, installed via [rustup.rs](https://rustup.rs/) for Windows.
+- **Microsoft Visual C++ Build Tools (MSVC)** including the Windows 10/11 SDK, available from the [Visual Studio Build Tools installer](https://visualstudio.microsoft.com/visual-cpp-build-tools/).
+
+Install both prerequisites before running `cargo build` or `cargo run` so the Win32 bindings can link successfully on Windows.
 
 ## Building and Running
 
