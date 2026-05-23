@@ -58,5 +58,6 @@
 - [x] Remove monitor edge limits: allow free movement across virtual desktop
 - [x] Limit off-screen movement: ensure at least 150px of the window remains visible
 - [x] Fix overlay flicker and lag: implement DeferWindowPos and advanced flicker-reduction flags
+- [x] Prevent glide on maximized windows: add IsZoomed check before activation
 - [x] Commit & Merge to main
 

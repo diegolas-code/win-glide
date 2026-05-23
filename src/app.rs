@@ -8,8 +8,8 @@ use std::collections::HashSet;
 use std::time::{Duration, Instant};
 use windows::Win32::Foundation::{HWND, RECT};
 use windows::Win32::UI::WindowsAndMessaging::{
-    BeginDeferWindowPos, DeferWindowPos, EndDeferWindowPos, GetWindowRect, SWP_DEFERERASE,
-    SWP_NOACTIVATE, SWP_NOCOPYBITS, SWP_NOSENDCHANGING, SWP_NOSIZE, SWP_NOZORDER,
+    BeginDeferWindowPos, DeferWindowPos, EndDeferWindowPos, GetWindowRect, IsZoomed,
+    SWP_NOACTIVATE, SWP_NOCOPYBITS, SWP_NOSIZE, SWP_NOZORDER,
 };
 
 pub struct App {
@@ -146,8 +146,13 @@ impl App {
         }
         let hwnd = get_active_window();
         if !hwnd.is_invalid() {
-            let mut rect = RECT::default();
             unsafe {
+                if IsZoomed(hwnd).as_bool() {
+                    println!("App: Skipping activation for maximized window: {:?}", hwnd);
+                    return;
+                }
+
+                let mut rect = RECT::default();
                 if GetWindowRect(hwnd, &mut rect).is_ok() {
                     println!("App: Activating session for window: {:?}", hwnd);
                     self.active_window = Some(hwnd);
