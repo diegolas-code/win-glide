@@ -247,10 +247,6 @@ impl App {
                     if let Ok(hdwp) = BeginDeferWindowPos(2) {
                         let mut hdwp = hdwp;
                         
-                        // Combined flags for smoothest movement
-                        let flags = SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOSIZE | 
-                                   SWP_NOCOPYBITS | SWP_DEFERERASE | SWP_NOSENDCHANGING;
-
                         // Move target window
                         if let Ok(h) = DeferWindowPos(
                             hdwp,
@@ -260,7 +256,7 @@ impl App {
                             new_rect.top,
                             0,
                             0,
-                            flags,
+                            SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOSIZE | SWP_NOCOPYBITS,
                         ) {
                             hdwp = h;
                         }
