@@ -70,3 +70,24 @@
 - [x] Update README.md with developer notes on testing and shutdown
 - [x] Commit & Merge to main
 
+## Phase 7: Visual Polish & UX
+- [ ] Implement subtle "fade-in" animation for the overlay (0ms -> 200ms)
+- [ ] Add optional pulsing effect or border highlight during active movement
+- [ ] Implement smooth "fade-out" when deactivating
+- [ ] Add configuration parameters for animation speeds
+- [ ] Commit & Merge to main
+
+## Phase 8: Performance & Optimization
+- [ ] Implement "sleep" mode for the physics loop when no keys are pressed
+- [ ] Optimize overlay redraws to only occur when window position actually changes
+- [ ] Profile and minimize GDI handle usage and memory allocations in the main loop
+- [ ] Commit & Merge to main
+
+## Phase 9: Productization (The Road to v1.0.0)
+- [ ] Create a release-optimized build profile
+- [ ] Implement a system tray icon for easy exit and status visibility
+- [ ] Research and implement a simple installer (e.g., Inno Setup or a WiX-based MSI)
+- [ ] Final audit of the `config.json` schema for long-term stability
+- [ ] Finalize user documentation and version bump to v1.0.0
+- [ ] Commit & Merge to main
+
