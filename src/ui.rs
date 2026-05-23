@@ -1,22 +1,23 @@
 //! UI and Rendering.
-//! 
+//!
 //! This module handles the visual overlay that indicates an active session.
 //! It uses a WS_EX_LAYERED window with per-pixel alpha transparency.
 //! Rendering is performed using `tiny-skia` into a GDI DIB section,
 //! which is then uploaded via `UpdateLayeredWindow`.
 
-use windows::core::w;
+use tiny_skia::{Color, Pixmap};
 use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, POINT, RECT, SIZE, WPARAM};
 use windows::Win32::Graphics::Gdi::{
-    CreateCompatibleDC, CreateDIBSection, DeleteDC, DeleteObject, SelectObject, AC_SRC_ALPHA,
-    AC_SRC_OVER, BITMAPINFO, BITMAPINFOHEADER, BLENDFUNCTION, DIB_RGB_COLORS,
+    AC_SRC_ALPHA, AC_SRC_OVER, BITMAPINFO, BITMAPINFOHEADER, BLENDFUNCTION, CreateCompatibleDC,
+    CreateDIBSection, DIB_RGB_COLORS, DeleteDC, DeleteObject, SelectObject,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    CreateWindowExW, DefWindowProcW, DeferWindowPos, RegisterClassW, CS_HREDRAW, CS_OWNDC, CS_VREDRAW,
-    CW_USEDEFAULT, HDWP, SW_HIDE, SW_SHOW, WNDCLASSW, WS_EX_LAYERED, WS_EX_NOACTIVATE,
-    WS_EX_TRANSPARENT, WS_POPUP, UpdateLayeredWindow, ULW_ALPHA, SWP_NOACTIVATE, SWP_NOZORDER,
+    CS_HREDRAW, CS_OWNDC, CS_VREDRAW, CW_USEDEFAULT, CreateWindowExW, DefWindowProcW,
+    DeferWindowPos, HDWP, RegisterClassW, SW_HIDE, SW_SHOW, SWP_NOACTIVATE, SWP_NOZORDER,
+    ULW_ALPHA, UpdateLayeredWindow, WNDCLASSW, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TRANSPARENT,
+    WS_POPUP,
 };
-use tiny_skia::{Color, Pixmap};
+use windows::core::w;
 
 /// Manages a transparent overlay window.
 pub struct Overlay {
@@ -28,7 +29,12 @@ pub const OVERLAY_TOP_EXTENSION: i32 = 10;
 
 impl Overlay {
     /// Internal window procedure for the overlay.
-    unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
+    unsafe extern "system" fn wnd_proc(
+        hwnd: HWND,
+        msg: u32,
+        wparam: WPARAM,
+        lparam: LPARAM,
+    ) -> LRESULT {
         // The overlay is mostly passive and doesn't handle inputs directly.
         unsafe { DefWindowProcW(hwnd, msg, wparam, lparam) }
     }
@@ -76,14 +82,14 @@ impl Overlay {
     /// Sets the target window as the "owner" of the overlay.
     /// This ensures the overlay stays on top of the target window.
     pub fn set_owner(&self, owner: HWND) {
-        use windows::Win32::UI::WindowsAndMessaging::{SetWindowLongPtrW, GWLP_HWNDPARENT};
+        use windows::Win32::UI::WindowsAndMessaging::{GWLP_HWNDPARENT, SetWindowLongPtrW};
         unsafe {
             SetWindowLongPtrW(self.hwnd, GWLP_HWNDPARENT, owner.0 as isize);
         }
     }
 
     /// Redraws the overlay based on the target window's dimensions.
-    /// 
+    ///
     /// This uses `tiny-skia` for high-quality 2D rendering and then
     /// copies the result to a GDI bitmap for display.
     pub fn redraw(&self, rect: RECT) -> windows::core::Result<()> {
@@ -132,14 +138,7 @@ impl Overlay {
             };
 
             let mut bits = std::ptr::null_mut();
-            let result = CreateDIBSection(
-                mem_dc,
-                &bmi,
-                DIB_RGB_COLORS,
-                &mut bits,
-                None,
-                0,
-            );
+            let result = CreateDIBSection(mem_dc, &bmi, DIB_RGB_COLORS, &mut bits, None, 0);
 
             match result {
                 Ok(bitmap) => {
@@ -150,8 +149,14 @@ impl Overlay {
                         let old_obj = SelectObject(mem_dc, bitmap);
 
                         let pt_src = POINT { x: 0, y: 0 };
-                        let pt_dst = POINT { x: rect.left, y: rect.top - OVERLAY_TOP_EXTENSION };
-                        let size = SIZE { cx: width, cy: height };
+                        let pt_dst = POINT {
+                            x: rect.left,
+                            y: rect.top - OVERLAY_TOP_EXTENSION,
+                        };
+                        let size = SIZE {
+                            cx: width,
+                            cy: height,
+                        };
 
                         let blend = BLENDFUNCTION {
                             BlendOp: AC_SRC_OVER as u8,
@@ -192,7 +197,7 @@ impl Overlay {
     }
 
     /// Queues a position update for the overlay.
-    /// 
+    ///
     /// Should be called within a BeginDeferWindowPos block for synchronization.
     pub fn defer_update_position(&self, hdwp: HDWP, rect: RECT) -> windows::core::Result<HDWP> {
         unsafe {

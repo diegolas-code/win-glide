@@ -1,5 +1,5 @@
 //! Momentum-based physics model.
-//! 
+//!
 //! This module implements the "Snappy & Light" movement model.
 //! It uses a velocity-based approach with acceleration and dual friction:
 //! - Low friction while keys are held (allows reaching high speeds).
@@ -36,10 +36,10 @@ pub struct PhysicsConfig {
 impl Default for PhysicsConfig {
     fn default() -> Self {
         Self {
-            acceleration: 4000.0,  // High acceleration for "snappy" feel.
-            friction: 10.0,        // High friction for quick stops.
-            thrust_friction: 0.5,  // Low friction while active to maintain momentum.
-            top_speed: 3000.0,     // Fast enough to cross 1080p in ~0.6s at max speed.
+            acceleration: 4000.0, // High acceleration for "snappy" feel.
+            friction: 10.0,       // High friction for quick stops.
+            thrust_friction: 0.5, // Low friction while active to maintain momentum.
+            top_speed: 3000.0,    // Fast enough to cross 1080p in ~0.6s at max speed.
         }
     }
 }
@@ -53,7 +53,7 @@ impl PhysicsState {
     }
 
     /// Applies acceleration in the specified direction.
-    /// 
+    ///
     /// `thrust` should be a unit vector (or zero).
     /// `dt` is the time elapsed since the last update in seconds.
     pub fn apply_thrust(&mut self, thrust: Vector2D, dt: f32) {
@@ -61,7 +61,7 @@ impl PhysicsState {
         self.velocity.x += thrust.x * self.config.acceleration * dt;
         self.velocity.y += thrust.y * self.config.acceleration * dt;
 
-        // Limit to top speed using vector magnitude to ensure 
+        // Limit to top speed using vector magnitude to ensure
         // diagonal movement isn't faster than cardinal movement.
         let speed = (self.velocity.x.powi(2) + self.velocity.y.powi(2)).sqrt();
         if speed > self.config.top_speed {
@@ -72,7 +72,7 @@ impl PhysicsState {
     }
 
     /// Updates the velocity based on friction and time delta.
-    /// 
+    ///
     /// Uses exponential decay for friction: v = v0 * e^(-f * dt).
     /// This provides a smooth, natural-feeling deceleration.
     pub fn update(&mut self, dt: f32, is_thrusting: bool) {
@@ -82,15 +82,19 @@ impl PhysicsState {
         } else {
             self.config.friction
         };
-        
+
         let friction_factor = (-f * dt).exp();
         self.velocity.x *= friction_factor;
         self.velocity.y *= friction_factor;
 
         // Threshold to zero to avoid infinitesimal floating point values
         // and unnecessary updates when effectively stationary.
-        if self.velocity.x.abs() < 0.1 { self.velocity.x = 0.0; }
-        if self.velocity.y.abs() < 0.1 { self.velocity.y = 0.0; }
+        if self.velocity.x.abs() < 0.1 {
+            self.velocity.x = 0.0;
+        }
+        if self.velocity.y.abs() < 0.1 {
+            self.velocity.y = 0.0;
+        }
     }
 }
 
@@ -102,7 +106,7 @@ mod tests {
     fn test_physics_acceleration() {
         let config = PhysicsConfig::default();
         let mut state = PhysicsState::new(config);
-        
+
         state.apply_thrust(Vector2D { x: 1.0, y: 0.0 }, 0.1);
         assert!(state.velocity.x > 0.0);
     }
@@ -112,7 +116,7 @@ mod tests {
         let config = PhysicsConfig::default();
         let mut state = PhysicsState::new(config);
         state.velocity.x = 100.0;
-        
+
         state.update(0.1, false);
         assert!(state.velocity.x < 100.0);
     }

@@ -1,27 +1,27 @@
 //! Low-level input handling.
-//! 
-//! This module manages Windows hooks (WH_KEYBOARD_LL, WH_MOUSE_LL) and 
+//!
+//! This module manages Windows hooks (WH_KEYBOARD_LL, WH_MOUSE_LL) and
 //! global hotkeys (RegisterHotKey).
-//! 
+//!
 //! Key design principles:
-//! 1. **Non-blocking Hooks**: LL hooks must return as fast as possible to avoid 
+//! 1. **Non-blocking Hooks**: LL hooks must return as fast as possible to avoid
 //!    system-wide lag. We use a thread-safe channel to send events to the main thread.
-//! 2. **Input Interception**: When a session is active, we consume arrow key 
-//!    events so they don't reach the target window, but we ALWAYS allow 
+//! 2. **Input Interception**: When a session is active, we consume arrow key
+//!    events so they don't reach the target window, but we ALWAYS allow
 //!    modifiers and KeyUp events to prevent "stuck keys".
-//! 3. **Dedicated Thread**: Hooks require a Win32 message loop (GetMessage) to 
+//! 3. **Dedicated Thread**: Hooks require a Win32 message loop (GetMessage) to
 //!    function, so they run on their own thread.
 
 use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
-use windows::Win32::UI::Input::KeyboardAndMouse::{
-    RegisterHotKey, UnregisterHotKey, HOT_KEY_MODIFIERS,
-};
 use windows::Win32::System::Threading::GetCurrentThreadId;
+use windows::Win32::UI::Input::KeyboardAndMouse::{
+    HOT_KEY_MODIFIERS, RegisterHotKey, UnregisterHotKey,
+};
 use windows::Win32::UI::WindowsAndMessaging::{
-    CallNextHookEx, DispatchMessageW, GetMessageW, PostThreadMessageW, SetWindowsHookExW,
-    UnhookWindowsHookEx, HHOOK, KBDLLHOOKSTRUCT, MSG, WH_KEYBOARD_LL, WH_MOUSE_LL, WM_HOTKEY,
-    WM_KEYDOWN, WM_KEYUP, WM_LBUTTONDOWN, WM_MBUTTONDOWN, WM_QUIT, WM_RBUTTONDOWN, WM_SYSKEYDOWN,
-    WM_SYSKEYUP, WM_XBUTTONDOWN,
+    CallNextHookEx, DispatchMessageW, GetMessageW, HHOOK, KBDLLHOOKSTRUCT, MSG, PostThreadMessageW,
+    SetWindowsHookExW, UnhookWindowsHookEx, WH_KEYBOARD_LL, WH_MOUSE_LL, WM_HOTKEY, WM_KEYDOWN,
+    WM_KEYUP, WM_LBUTTONDOWN, WM_MBUTTONDOWN, WM_QUIT, WM_RBUTTONDOWN, WM_SYSKEYDOWN, WM_SYSKEYUP,
+    WM_XBUTTONDOWN,
 };
 
 /// Events sent from the input thread to the main application loop.
@@ -39,10 +39,10 @@ pub enum InputEvent {
     Shutdown,
 }
 
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::OnceLock;
 use crossbeam_channel::Sender;
-use windows::Win32::System::Console::{SetConsoleCtrlHandler, CTRL_C_EVENT};
+use std::sync::OnceLock;
+use std::sync::atomic::{AtomicBool, Ordering};
+use windows::Win32::System::Console::{CTRL_C_EVENT, SetConsoleCtrlHandler};
 
 /// Global sender for events. Initialized once at startup.
 static EVENT_SENDER: OnceLock<Sender<InputEvent>> = OnceLock::new();
@@ -69,7 +69,7 @@ unsafe extern "system" fn console_ctrl_handler(ctrl_type: u32) -> windows::Win32
     if ctrl_type == CTRL_C_EVENT {
         println!("\nShutdown signal received (Ctrl+C)");
         emit_event(InputEvent::Shutdown);
-        return windows::Win32::Foundation::BOOL(1); 
+        return windows::Win32::Foundation::BOOL(1);
     }
     windows::Win32::Foundation::BOOL(0)
 }
@@ -92,17 +92,17 @@ fn is_modifier(vk_code: u32) -> bool {
 }
 
 /// Low-level keyboard hook callback.
-/// 
+///
 /// Intercepts keys system-wide. When a glide session is active, it blocks
 /// arrow keys from reaching the target window while reporting them to the app.
 unsafe extern "system" fn keyboard_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     if code >= 0 {
         let is_active = IS_SESSION_ACTIVE.load(Ordering::Relaxed);
-        
+
         if is_active {
             let kbd_struct = unsafe { *(lparam.0 as *const KBDLLHOOKSTRUCT) };
             let vk_code = kbd_struct.vkCode;
-            
+
             let is_key_down = match wparam.0 as u32 {
                 WM_KEYDOWN | WM_SYSKEYDOWN => {
                     emit_event(InputEvent::KeyDown(vk_code));
@@ -115,9 +115,9 @@ unsafe extern "system" fn keyboard_proc(code: i32, wparam: WPARAM, lparam: LPARA
                 _ => return unsafe { CallNextHookEx(None, code, wparam, lparam) },
             };
 
-            // CRITICAL SAFETY RULE: 
+            // CRITICAL SAFETY RULE:
             // Do NOT block modifier keys or KeyUp events.
-            // Blocking these causes "stuck keys" where the OS thinks a key is still 
+            // Blocking these causes "stuck keys" where the OS thinks a key is still
             // down because it never saw the release event. This breaks the desktop.
             if is_modifier(vk_code) || !is_key_down {
                 return unsafe { CallNextHookEx(None, code, wparam, lparam) };
@@ -132,7 +132,7 @@ unsafe extern "system" fn keyboard_proc(code: i32, wparam: WPARAM, lparam: LPARA
 }
 
 /// Low-level mouse hook callback.
-/// 
+///
 /// Used to detect mouse clicks to automatically deactivate the session.
 unsafe extern "system" fn mouse_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     if code >= 0 && IS_SESSION_ACTIVE.load(Ordering::Relaxed) {
@@ -176,10 +176,10 @@ pub struct KeyboardHook {
 }
 
 impl KeyboardHook {
-    pub fn new(callback: unsafe extern "system" fn(i32, WPARAM, LPARAM) -> LRESULT) -> windows::core::Result<Self> {
-        let hhook = unsafe {
-            SetWindowsHookExW(WH_KEYBOARD_LL, Some(callback), None, 0)?
-        };
+    pub fn new(
+        callback: unsafe extern "system" fn(i32, WPARAM, LPARAM) -> LRESULT,
+    ) -> windows::core::Result<Self> {
+        let hhook = unsafe { SetWindowsHookExW(WH_KEYBOARD_LL, Some(callback), None, 0)? };
         Ok(Self { hhook })
     }
 }
@@ -198,10 +198,10 @@ pub struct MouseHook {
 }
 
 impl MouseHook {
-    pub fn new(callback: unsafe extern "system" fn(i32, WPARAM, LPARAM) -> LRESULT) -> windows::core::Result<Self> {
-        let hhook = unsafe {
-            SetWindowsHookExW(WH_MOUSE_LL, Some(callback), None, 0)?
-        };
+    pub fn new(
+        callback: unsafe extern "system" fn(i32, WPARAM, LPARAM) -> LRESULT,
+    ) -> windows::core::Result<Self> {
+        let hhook = unsafe { SetWindowsHookExW(WH_MOUSE_LL, Some(callback), None, 0)? };
         Ok(Self { hhook })
     }
 }
@@ -229,7 +229,10 @@ unsafe impl Sync for InputManager {}
 
 impl InputManager {
     /// Initializes all hooks and hotkeys based on the provided configuration.
-    pub fn new_with_config(sender: Sender<InputEvent>, config: HotkeyConfig) -> windows::core::Result<Self> {
+    pub fn new_with_config(
+        sender: Sender<InputEvent>,
+        config: HotkeyConfig,
+    ) -> windows::core::Result<Self> {
         let _ = set_event_sender(sender);
 
         let hotkey = HotkeyManager::new(1337, HOT_KEY_MODIFIERS(config.modifiers), config.vk)?;
@@ -287,13 +290,21 @@ mod tests {
     #[test]
     fn test_keyboard_hook_registration() {
         let res = KeyboardHook::new(test_hook_proc);
-        assert!(res.is_ok(), "Keyboard hook registration failed: {:?}", res.err());
+        assert!(
+            res.is_ok(),
+            "Keyboard hook registration failed: {:?}",
+            res.err()
+        );
     }
 
     #[test]
     fn test_mouse_hook_registration() {
         let res = MouseHook::new(test_hook_proc);
-        assert!(res.is_ok(), "Mouse hook registration failed: {:?}", res.err());
+        assert!(
+            res.is_ok(),
+            "Mouse hook registration failed: {:?}",
+            res.err()
+        );
     }
 
     #[test]
@@ -301,7 +312,7 @@ mod tests {
         let (tx, rx) = crossbeam_channel::unbounded();
         // This might fail if another test already set it, but we'll try.
         let _ = set_event_sender(tx);
-        
+
         emit_event(InputEvent::KeyDown(0x5A)); // 'Z'
         let event = rx.recv().unwrap();
         assert_eq!(event, InputEvent::KeyDown(0x5A));
@@ -312,6 +323,10 @@ mod tests {
     fn test_input_manager_initialization() {
         let (tx, _rx) = crossbeam_channel::unbounded();
         let manager = InputManager::new_with_config(tx, crate::config::Config::default().hotkey);
-        assert!(manager.is_ok(), "InputManager creation failed: {:?}", manager.err());
+        assert!(
+            manager.is_ok(),
+            "InputManager creation failed: {:?}",
+            manager.err()
+        );
     }
 }

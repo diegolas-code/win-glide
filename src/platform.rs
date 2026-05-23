@@ -1,6 +1,6 @@
 //! Windows platform-specific utilities.
-//! 
-//! Provides helpers for DPI awareness, monitor enumeration, and 
+//!
+//! Provides helpers for DPI awareness, monitor enumeration, and
 //! virtual desktop coordinate math.
 
 use windows::Win32::Foundation::{HWND, RECT};
@@ -17,7 +17,7 @@ pub struct Platform;
 
 impl Platform {
     /// Returns the logical DPI for a specific window.
-    /// 
+    ///
     /// This is used to scale UI elements (like the overlay border)
     /// correctly on high-DPI displays.
     pub fn get_dpi_for_window(hwnd: HWND) -> u32 {
@@ -45,7 +45,7 @@ impl Platform {
     }
 
     /// Returns the bounding box of the entire virtual desktop.
-    /// 
+    ///
     /// This spans all monitors and is used for boundary checking
     /// during window movement.
     pub fn get_virtual_screen_rect() -> RECT {

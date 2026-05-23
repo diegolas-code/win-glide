@@ -1,7 +1,7 @@
 //! Main application state machine and loop.
-//! 
+//!
 //! This module coordinates input events, physics updates, and window movement.
-//! It maintains the "active session" state and ensures the overlay stays 
+//! It maintains the "active session" state and ensures the overlay stays
 //! synchronized with the target window.
 
 use crate::input::{InputEvent, InputManager};
@@ -50,7 +50,11 @@ pub struct App {
 }
 
 impl App {
-    pub fn new(event_rx: Receiver<InputEvent>, physics_config: PhysicsConfig, input_manager: Arc<InputManager>) -> Self {
+    pub fn new(
+        event_rx: Receiver<InputEvent>,
+        physics_config: PhysicsConfig,
+        input_manager: Arc<InputManager>,
+    ) -> Self {
         Self {
             physics: PhysicsState::new(physics_config),
             event_rx,
@@ -69,10 +73,10 @@ impl App {
     }
 
     /// The main application loop.
-    /// 
+    ///
     /// Runs at ~120Hz to provide smooth, high-refresh-rate window movement.
     pub fn run(&mut self) {
-        let frame_duration = Duration::from_millis(8); 
+        let frame_duration = Duration::from_millis(8);
 
         while self.running {
             let now = Instant::now();
@@ -81,13 +85,13 @@ impl App {
 
             // Process internal Win32 messages (required for the overlay window).
             self.pump_messages();
-            
+
             // Process events from the low-level input thread.
             self.process_events();
-            
+
             // Handle automatic deactivation (timeout, focus loss).
             self.check_exit_conditions(now);
-            
+
             // If a session is active, perform the physics and movement update.
             if self.active_window.is_some() {
                 let is_thrusting = self.apply_thrust(dt);
@@ -101,14 +105,14 @@ impl App {
                 std::thread::sleep(frame_duration - elapsed);
             }
         }
-        
+
         println!("App: Shutdown complete.");
     }
 
     /// Processes pending messages for the application's own windows.
     fn pump_messages(&mut self) {
         use windows::Win32::UI::WindowsAndMessaging::{
-            DispatchMessageW, PeekMessageW, TranslateMessage, MSG, PM_REMOVE,
+            DispatchMessageW, MSG, PM_REMOVE, PeekMessageW, TranslateMessage,
         };
 
         let mut msg = MSG::default();
@@ -135,8 +139,10 @@ impl App {
             let current_active = get_active_window();
             if let Some(active) = self.active_window {
                 if current_active != active && current_active != self.overlay.hwnd {
-                    println!("Focus lost, deactivating (Active: {:?}, Overlay: {:?}, Current: {:?})", 
-                        active, self.overlay.hwnd, current_active);
+                    println!(
+                        "Focus lost, deactivating (Active: {:?}, Overlay: {:?}, Current: {:?})",
+                        active, self.overlay.hwnd, current_active
+                    );
                     self.deactivate_session();
                 }
             }
@@ -155,7 +161,8 @@ impl App {
                 InputEvent::KeyDown(vk) => {
                     if self.active_window.is_some() {
                         match vk {
-                            0x25..=0x28 => { // Arrow keys: Left, Up, Right, Down
+                            0x25..=0x28 => {
+                                // Arrow keys: Left, Up, Right, Down
                                 self.pressed_keys.insert(vk);
                             }
                             0x10..=0x12 | 0x5B..=0x5C | 0xA0..=0xA5 => {
@@ -240,19 +247,27 @@ impl App {
     /// Converts held keys into a thrust vector.
     fn apply_thrust(&mut self, dt: f32) -> bool {
         let mut thrust = Vector2D::default();
-        
+
         // Arrow keys: 0x25 (Left), 0x26 (Up), 0x27 (Right), 0x28 (Down)
-        if self.pressed_keys.contains(&0x25) { thrust.x -= 1.0; }
-        if self.pressed_keys.contains(&0x27) { thrust.x += 1.0; }
-        if self.pressed_keys.contains(&0x26) { thrust.y -= 1.0; }
-        if self.pressed_keys.contains(&0x28) { thrust.y += 1.0; }
+        if self.pressed_keys.contains(&0x25) {
+            thrust.x -= 1.0;
+        }
+        if self.pressed_keys.contains(&0x27) {
+            thrust.x += 1.0;
+        }
+        if self.pressed_keys.contains(&0x26) {
+            thrust.y -= 1.0;
+        }
+        if self.pressed_keys.contains(&0x28) {
+            thrust.y += 1.0;
+        }
 
         if thrust.x != 0.0 || thrust.y != 0.0 {
             // Normalize diagonal thrust to ensure consistent speed.
             let length = (thrust.x.powi(2) + thrust.y.powi(2)).sqrt();
             thrust.x /= length;
             thrust.y /= length;
-            
+
             self.physics.apply_thrust(thrust, dt);
             true
         } else {
@@ -266,7 +281,7 @@ impl App {
     }
 
     /// Applies the calculated velocity to the window position.
-    /// 
+    ///
     /// Includes collision detection with the virtual desktop boundaries
     /// to prevent windows from being lost off-screen.
     fn apply_movement(&mut self, _dt: f32) {
@@ -284,7 +299,7 @@ impl App {
                 new_rect.top = self.pos_y.round() as i32;
 
                 // --- Boundary Handling ---
-                // Limit off-screen movement: ensure at least 150px of the window 
+                // Limit off-screen movement: ensure at least 150px of the window
                 // remains visible on the virtual desktop.
                 let vs = Platform::get_virtual_screen_rect();
                 let min_visible = 150;
@@ -318,7 +333,7 @@ impl App {
                     // move in the same screen refresh.
                     if let Ok(hdwp) = BeginDeferWindowPos(2) {
                         let mut hdwp = hdwp;
-                        
+
                         // Move target window
                         if let Ok(h) = DeferWindowPos(
                             hdwp,
