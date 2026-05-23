@@ -4,8 +4,8 @@
 The application now features a dual-friction physics model for better acceleration and speed.
 
 ### Completed Recently:
-- **Dual-Friction Model:** Implemented low friction during thrusting and high friction during coasting. This allows the window to reach the full 4,000 pixels/s top speed while still stopping quickly on release.
-- **Physics Tuning:** Set acceleration to 4,000 pixels/s² to provide a clear 1-second build-up to max speed.
+- **Physics Refinement:** Reduced acceleration to 3,000 pixels/s² for a smoother 1.33s spin-up time.
+- **Dual-Friction Model:** Implemented low friction during thrusting and high friction during coasting.
 - **Graceful Shutdown:** Handled Ctrl+C via console control handler.
 
 ### Next Steps / Future Ideas:

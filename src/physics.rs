@@ -22,7 +22,7 @@ pub struct PhysicsConfig {
 impl Default for PhysicsConfig {
     fn default() -> Self {
         Self {
-            acceleration: 4000.0,  // pixels per second^2
+            acceleration: 3000.0,  // pixels per second^2 (slightly slower spin-up)
             friction: 10.0,        // velocity reduction factor when coasting
             thrust_friction: 0.5,  // low friction while keys are held
             top_speed: 4000.0,     // pixels per second
