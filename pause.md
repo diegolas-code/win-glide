@@ -1,17 +1,14 @@
 # Project Pause: `win-glide`
 
 ## Current Status
-- **Phase:** Phase 1: Foundation Complete. Moving to Phase 2: Input & Hooks.
+- **Phase:** Phase 2: Input & Hooks (In Progress).
+- **Branch:** `feat/hotkey-registration`
 - **Workflow:** TDD-driven, idiomatic Rust 2024.
 
 ## Last Actions
-- Implemented `get_active_window` logic.
-- Implemented `Platform` module for DPI detection and Monitor enumeration.
-- Verified all Foundation logic with unit tests.
-- Configured `windows-rs` dependencies for Win32 UI and Graphics.
-- Set up GitHub Actions CI workflow for automated `fmt`, `clippy`, and `test`.
-- Created project `README.md` with detailed MSVC and Windows SDK build requirements.
-- Initialized Git repository and committed Phase 1 progress.
+- Created `dev` branch and `feat/hotkey-registration` feature branch.
+- Added `Win32_UI_Input_KeyboardAndMouse` feature to `Cargo.toml`.
+- Initialized Phase 2 implementation.
 
 ## Next Steps
 - Implement `Ctrl + Shift + M` global hotkey.
