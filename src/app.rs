@@ -219,10 +219,7 @@ impl App {
                 new_rect.right = new_rect.left + width;
                 new_rect.bottom = new_rect.top + height;
 
-                // Clamp to work area
-                self.clamp_to_work_area(hwnd, &mut new_rect);
-
-                // Update our internal floats to match clamped/rounded ints
+                // Update our internal floats to match rounded ints
                 self.pos_x = new_rect.left as f32;
                 self.pos_y = new_rect.top as f32;
                 self.window_rect = new_rect;
@@ -239,39 +236,6 @@ impl App {
                     );
                 }
                 self.overlay.update_position(self.window_rect);
-            }
-        }
-    }
-
-    fn clamp_to_work_area(&self, hwnd: HWND, rect: &mut RECT) {
-        unsafe {
-            let hmonitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
-            let mut info = MONITORINFO {
-                cbSize: std::mem::size_of::<MONITORINFO>() as u32,
-                ..Default::default()
-            };
-
-            if GetMonitorInfoW(hmonitor, &mut info).as_bool() {
-                let work = info.rcWork;
-                let width = rect.right - rect.left;
-                let height = rect.bottom - rect.top;
-
-                if rect.left < work.left {
-                    rect.left = work.left;
-                    rect.right = rect.left + width;
-                }
-                if rect.right > work.right {
-                    rect.right = work.right;
-                    rect.left = rect.right - width;
-                }
-                if rect.top < work.top {
-                    rect.top = work.top;
-                    rect.bottom = rect.top + height;
-                }
-                if rect.bottom > work.bottom {
-                    rect.bottom = work.bottom;
-                    rect.top = rect.bottom - height;
-                }
             }
         }
     }

@@ -55,5 +55,6 @@
 - [x] Tune physics: increase top speed and decrease acceleration for better feel
 - [x] Implement dual-friction model: allow reaching top speed while maintaining quick stop
 - [x] Refine physics: reduce acceleration for 1.33s spin-up time
+- [x] Remove monitor edge limits: allow free movement across virtual desktop
 - [x] Commit & Merge to main
 
