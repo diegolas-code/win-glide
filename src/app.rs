@@ -202,33 +202,31 @@ impl App {
                 let width = new_rect.right - new_rect.left;
                 let height = new_rect.bottom - new_rect.top;
 
-                new_rect.left = self.pos_x as i32;
-                new_rect.top = self.pos_y as i32;
+                new_rect.left = self.pos_x.round() as i32;
+                new_rect.top = self.pos_y.round() as i32;
                 new_rect.right = new_rect.left + width;
                 new_rect.bottom = new_rect.top + height;
 
                 // Clamp to work area
                 self.clamp_to_work_area(hwnd, &mut new_rect);
 
-                if new_rect.left != self.window_rect.left || new_rect.top != self.window_rect.top {
-                    // Update our internal floats to match clamped ints if clamping happened
-                    self.pos_x = new_rect.left as f32;
-                    self.pos_y = new_rect.top as f32;
-                    self.window_rect = new_rect;
+                // Update our internal floats to match clamped/rounded ints
+                self.pos_x = new_rect.left as f32;
+                self.pos_y = new_rect.top as f32;
+                self.window_rect = new_rect;
 
-                    unsafe {
-                        let _ = SetWindowPos(
-                            hwnd,
-                            HWND::default(),
-                            new_rect.left,
-                            new_rect.top,
-                            0,
-                            0,
-                            SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOSIZE,
-                        );
-                    }
-                    self.overlay.update_position(self.window_rect);
+                unsafe {
+                    let _ = SetWindowPos(
+                        hwnd,
+                        HWND::default(),
+                        new_rect.left,
+                        new_rect.top,
+                        0,
+                        0,
+                        SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOSIZE,
+                    );
                 }
+                self.overlay.update_position(self.window_rect);
             }
         }
     }
