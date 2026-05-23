@@ -15,6 +15,8 @@ pub struct Overlay {
     pub hwnd: HWND,
 }
 
+const TOP_EXTENSION: i32 = 10;
+
 impl Overlay {
     unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
         unsafe { DefWindowProcW(hwnd, msg, wparam, lparam) }
@@ -57,7 +59,7 @@ impl Overlay {
 
     pub fn redraw(&self, rect: RECT) -> windows::core::Result<()> {
         let width = rect.right - rect.left;
-        let height = rect.bottom - rect.top;
+        let height = (rect.bottom - rect.top) + TOP_EXTENSION;
 
         if width <= 0 || height <= 0 {
             return Ok(());
@@ -106,7 +108,7 @@ impl Overlay {
             let old_obj = SelectObject(mem_dc, bitmap);
 
             let pt_src = POINT { x: 0, y: 0 };
-            let pt_dst = POINT { x: rect.left, y: rect.top };
+            let pt_dst = POINT { x: rect.left, y: rect.top - TOP_EXTENSION };
             let size = SIZE { cx: width, cy: height };
 
             let blend = BLENDFUNCTION {
@@ -143,9 +145,9 @@ impl Overlay {
                 self.hwnd,
                 HWND::default(),
                 rect.left,
-                rect.top,
+                rect.top - TOP_EXTENSION,
                 rect.right - rect.left,
-                rect.bottom - rect.top,
+                (rect.bottom - rect.top) + TOP_EXTENSION,
                 windows::Win32::UI::WindowsAndMessaging::SWP_NOACTIVATE | windows::Win32::UI::WindowsAndMessaging::SWP_NOZORDER,
             );
         }
