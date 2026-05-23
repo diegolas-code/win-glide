@@ -28,7 +28,9 @@ static EVENT_SENDER: OnceLock<Sender<InputEvent>> = OnceLock::new();
 static IS_SESSION_ACTIVE: AtomicBool = AtomicBool::new(false);
 
 pub fn set_event_sender(sender: Sender<InputEvent>) {
-    let _ = EVENT_SENDER.set(sender);
+    if EVENT_SENDER.set(sender).is_err() {
+        eprintln!("Warning: EVENT_SENDER was already set and cannot be re-initialized.");
+    }
 }
 
 pub fn register_shutdown_handler() -> windows::core::Result<()> {

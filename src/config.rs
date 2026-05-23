@@ -31,15 +31,21 @@ impl Config {
     pub fn load() -> Self {
         let path = Path::new("config.json");
         if path.exists() {
-            if let Ok(content) = fs::read_to_string(path) {
-                if let Ok(config) = serde_json::from_str::<Self>(&content) {
-                    return config;
+            match fs::read_to_string(path) {
+                Ok(content) => {
+                    match serde_json::from_str::<Self>(&content) {
+                        Ok(config) => return config,
+                        Err(e) => eprintln!("Error parsing config.json: {:?}. Using defaults.", e),
+                    }
                 }
+                Err(e) => eprintln!("Error reading config.json: {:?}. Using defaults.", e),
             }
         }
         
         let default_config = Self::default();
-        let _ = default_config.save();
+        if let Err(e) = default_config.save() {
+            eprintln!("Error saving default config: {:?}", e);
+        }
         default_config
     }
 
