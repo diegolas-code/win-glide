@@ -57,6 +57,12 @@ cargo build --release
 ```bash
 cargo test
 ```
+*Note: Some tests that register global hooks or hotkeys are marked as `#[ignore]` to avoid failures in non-interactive CI environments. To run all tests locally, use `cargo test -- --ignored`.*
+
+## Developer Notes
+- **Graceful Shutdown:** The application uses a thread-safe signaling mechanism. When `App` receives a `Shutdown` event (from `Ctrl+C`), it sends a `WM_QUIT` signal to the background input thread. This ensures that `Drop` implementations for low-level hooks and global hotkeys are executed reliably.
+- **Testing Hygiene:** System-level tests involving Win32 hooks require an active interactive desktop session. These are gated behind `#[ignore]` to maintain CI stability.
+- **DPI Awareness:** The application is `PerMonitorV2` DPI-aware. Movement and rendering are normalized against the current monitor's DPI scaling.
 
 ## Development Workflow
 This project follows **strict idiomatic Rust standards** and mandatory documentation habits. Detailed technical decisions and bug fixes are recorded in the `.history/` directory.
