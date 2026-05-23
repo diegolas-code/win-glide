@@ -21,8 +21,8 @@ use crossbeam_channel::Sender;
 
 static EVENT_SENDER: OnceLock<Sender<InputEvent>> = OnceLock::new();
 
-pub fn set_event_sender(sender: Sender<InputEvent>) -> Result<(), Sender<InputEvent>> {
-    EVENT_SENDER.set(sender)
+pub fn set_event_sender(sender: Sender<InputEvent>) {
+    let _ = EVENT_SENDER.set(sender);
 }
 
 fn emit_event(event: InputEvent) {
@@ -131,12 +131,12 @@ pub struct InputManager {
 impl InputManager {
     pub fn new(sender: Sender<InputEvent>) -> windows::core::Result<Self> {
         let _ = set_event_sender(sender);
-        
-        // Ctrl + Shift + M = 0x4D
-        let hotkey = HotkeyManager::new(1, MOD_CONTROL | MOD_SHIFT, 0x4D)?;
+
+        // Use ID 1337 to avoid common conflicts, though the keys might still conflict.
+        let hotkey = HotkeyManager::new(1337, MOD_CONTROL | MOD_SHIFT, 0x4D)?;
         let kbd_hook = KeyboardHook::new(keyboard_proc)?;
         let mouse_hook = MouseHook::new(mouse_proc)?;
-        
+
         Ok(Self {
             _hotkey: hotkey,
             _kbd_hook: kbd_hook,
@@ -193,5 +193,12 @@ mod tests {
         emit_event(InputEvent::KeyDown(0x5A)); // 'Z'
         let event = rx.recv().unwrap();
         assert_eq!(event, InputEvent::KeyDown(0x5A));
+    }
+
+    #[test]
+    fn test_input_manager_initialization() {
+        let (tx, _rx) = crossbeam_channel::unbounded();
+        let manager = InputManager::new(tx);
+        assert!(manager.is_ok(), "InputManager creation failed: {:?}", manager.err());
     }
 }

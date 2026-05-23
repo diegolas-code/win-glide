@@ -1,17 +1,15 @@
 # Project Pause: `win-glide`
 
 ## Current Status
-- **Phase:** Phase 2: Input & Hooks (In Progress).
+- **Phase:** Phase 2: Input & Hooks Complete. Moving to Phase 3: Physics & Movement.
 - **Branch:** `feat/hotkey-registration`
 - **Workflow:** TDD-driven, idiomatic Rust 2024.
 
 ## Last Actions
-- Created `dev` branch and `feat/hotkey-registration` feature branch.
-- Added `Win32_UI_Input_KeyboardAndMouse` and `crossbeam-channel` features/dependencies.
-- Implemented `HotkeyManager`, `KeyboardHook`, and `MouseHook` in `src/input.rs` with RAII support.
 - Implemented `InputManager` with a Win32 message loop and a global thread-safe dispatcher.
 - Added low-level hook callbacks (`keyboard_proc`, `mouse_proc`) to capture and emit `InputEvent`s.
-- Verified input registrations and dispatcher with unit tests.
+- Verified all input registrations and dispatcher with unit tests.
+- Handled `HotkeyManager`, `KeyboardHook`, and `MouseHook` with RAII.
 
 ## Next Steps
 - Implement `Ctrl + Shift + M` global hotkey.
