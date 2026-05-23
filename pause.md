@@ -7,9 +7,9 @@
 
 ## Last Actions
 - Implemented `Config` system in `src/config.rs` using `serde`.
-- Updated `InputManager` and `App` to be fully configurable via `config.json`.
+- Implemented idle timeout (3s) and focus-loss detection in `App`.
 - Integrated `Overlay` with `tiny-skia` rendering and smooth movement.
-- Verified that all components work together with the new configuration system.
+- Verified all session lifecycle states (activate, move, idle-deactivate, focus-loss-deactivate).
 
 ## Next Steps
 - Implement `serde` based JSON config loading.

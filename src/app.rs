@@ -14,6 +14,7 @@ pub struct App {
     physics: PhysicsState,
     event_rx: Receiver<InputEvent>,
     last_update: Instant,
+    last_input: Instant,
     active_window: Option<HWND>,
     window_rect: RECT,
     dpi: u32,
@@ -26,6 +27,7 @@ impl App {
             physics: PhysicsState::new(physics_config),
             event_rx,
             last_update: Instant::now(),
+            last_input: Instant::now(),
             active_window: None,
             window_rect: RECT::default(),
             dpi: 96,
@@ -42,6 +44,7 @@ impl App {
             self.last_update = now;
 
             self.process_events();
+            self.check_exit_conditions(now);
             self.update(dt);
             self.apply_movement(dt);
 
@@ -52,8 +55,29 @@ impl App {
         }
     }
 
+    fn check_exit_conditions(&mut self, now: Instant) {
+        if self.active_window.is_some() {
+            // Idle timeout: 3 seconds
+            if now.duration_since(self.last_input) > Duration::from_secs(3) {
+                println!("Idle timeout reached");
+                self.deactivate_session();
+                return;
+            }
+
+            // Focus loss
+            let current_active = get_active_window();
+            if let Some(active) = self.active_window {
+                if current_active != active {
+                    println!("Focus lost, deactivating");
+                    self.deactivate_session();
+                }
+            }
+        }
+    }
+
     fn process_events(&mut self) {
         while let Ok(event) = self.event_rx.try_recv() {
+            self.last_input = Instant::now();
             match event {
                 InputEvent::HotkeyTriggered(_) => {
                     self.activate_session();
