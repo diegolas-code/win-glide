@@ -4,6 +4,7 @@ use crate::platform::Platform;
 use crate::ui::Overlay;
 use crate::window::get_active_window;
 use crossbeam_channel::Receiver;
+use std::collections::HashSet;
 use std::time::{Duration, Instant};
 use windows::Win32::Foundation::{HWND, RECT};
 use windows::Win32::Graphics::Gdi::{
@@ -24,6 +25,7 @@ pub struct App {
     pos_y: f32,
     dpi: u32,
     overlay: Overlay,
+    pressed_keys: HashSet<u32>,
 }
 
 impl App {
@@ -39,6 +41,7 @@ impl App {
             pos_y: 0.0,
             dpi: 96,
             overlay: Overlay::new().expect("Failed to create Overlay"),
+            pressed_keys: HashSet::new(),
         }
     }
 
@@ -51,10 +54,14 @@ impl App {
             self.last_update = now;
 
             self.pump_messages();
-            self.process_events(dt);
+            self.process_events();
             self.check_exit_conditions(now);
-            self.update(dt);
-            self.apply_movement(dt);
+            
+            if self.active_window.is_some() {
+                self.apply_thrust(dt);
+                self.update(dt);
+                self.apply_movement(dt);
+            }
 
             let elapsed = now.elapsed();
             if elapsed < frame_duration {
@@ -97,7 +104,7 @@ impl App {
         }
     }
 
-    fn process_events(&mut self, dt: f32) {
+    fn process_events(&mut self) {
         while let Ok(event) = self.event_rx.try_recv() {
             self.last_input = Instant::now();
             match event {
@@ -107,14 +114,15 @@ impl App {
                 }
                 InputEvent::KeyDown(vk) => {
                     if self.active_window.is_some() {
-                        println!("Key down: 0x{:X}", vk);
-                        if !self.handle_key_down(vk, dt) {
+                        if vk == 0x1B { // ESC
                             self.deactivate_session();
+                        } else {
+                            self.pressed_keys.insert(vk);
                         }
                     }
                 }
                 InputEvent::KeyUp(vk) => {
-                    self.handle_key_up(vk);
+                    self.pressed_keys.remove(&vk);
                 }
                 InputEvent::MouseButtonDown => {
                     println!("Mouse click detected, deactivating");
@@ -157,24 +165,28 @@ impl App {
         crate::input::set_session_active(false);
         self.active_window = None;
         self.physics.velocity = Vector2D::default();
+        self.pressed_keys.clear();
         self.overlay.show(false);
     }
 
-    fn handle_key_down(&mut self, vk: u32, dt: f32) -> bool {
+    fn apply_thrust(&mut self, dt: f32) {
+        let mut thrust = Vector2D::default();
+        
         // Arrow keys: 0x25 (Left), 0x26 (Up), 0x27 (Right), 0x28 (Down)
-        let thrust = match vk {
-            0x25 => Vector2D { x: -1.0, y: 0.0 },
-            0x26 => Vector2D { x: 0.0, y: -1.0 },
-            0x27 => Vector2D { x: 1.0, y: 0.0 },
-            0x28 => Vector2D { x: 0.0, y: 1.0 },
-            0x1B => return false, // ESC
-            _ => return true,      // Ignore other keys for now
-        };
-        self.physics.apply_thrust(thrust, dt);
-        true
-    }
+        if self.pressed_keys.contains(&0x25) { thrust.x -= 1.0; }
+        if self.pressed_keys.contains(&0x27) { thrust.x += 1.0; }
+        if self.pressed_keys.contains(&0x26) { thrust.y -= 1.0; }
+        if self.pressed_keys.contains(&0x28) { thrust.y += 1.0; }
 
-    fn handle_key_up(&mut self, _vk: u32) {}
+        if thrust.x != 0.0 || thrust.y != 0.0 {
+            // Normalize diagonal thrust
+            let length = (thrust.x.powi(2) + thrust.y.powi(2)).sqrt();
+            thrust.x /= length;
+            thrust.y /= length;
+            
+            self.physics.apply_thrust(thrust, dt);
+        }
+    }
 
     fn update(&mut self, dt: f32) {
         self.physics.update(dt);

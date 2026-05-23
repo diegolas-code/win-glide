@@ -21,9 +21,9 @@ pub struct PhysicsConfig {
 impl Default for PhysicsConfig {
     fn default() -> Self {
         Self {
-            acceleration: 1000.0, // pixels per second^2
-            friction: 10.0,       // velocity reduction factor
-            top_speed: 1200.0,    // pixels per second
+            acceleration: 10000.0, // pixels per second^2
+            friction: 10.0,        // velocity reduction factor
+            top_speed: 2500.0,     // pixels per second
         }
     }
 }
