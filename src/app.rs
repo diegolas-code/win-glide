@@ -1,10 +1,11 @@
-use crate::input::InputEvent;
+use crate::input::{InputEvent, InputManager};
 use crate::physics::{PhysicsConfig, PhysicsState, Vector2D};
 use crate::platform::Platform;
 use crate::ui::Overlay;
 use crate::window::get_active_window;
 use crossbeam_channel::Receiver;
 use std::collections::HashSet;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 use windows::Win32::Foundation::{HWND, RECT};
 use windows::Win32::UI::WindowsAndMessaging::{
@@ -15,6 +16,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
 pub struct App {
     physics: PhysicsState,
     event_rx: Receiver<InputEvent>,
+    input_manager: Arc<InputManager>,
     last_update: Instant,
     last_input: Instant,
     active_window: Option<HWND>,
@@ -28,10 +30,11 @@ pub struct App {
 }
 
 impl App {
-    pub fn new(event_rx: Receiver<InputEvent>, physics_config: PhysicsConfig) -> Self {
+    pub fn new(event_rx: Receiver<InputEvent>, physics_config: PhysicsConfig, input_manager: Arc<InputManager>) -> Self {
         Self {
             physics: PhysicsState::new(physics_config),
             event_rx,
+            input_manager,
             last_update: Instant::now(),
             last_input: Instant::now(),
             active_window: None,
@@ -142,6 +145,7 @@ impl App {
                 InputEvent::Shutdown => {
                     println!("App: Shutdown event received");
                     self.deactivate_session();
+                    self.input_manager.request_stop();
                     self.running = false;
                 }
             }

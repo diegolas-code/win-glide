@@ -2,10 +2,11 @@ use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
 use windows::Win32::UI::Input::KeyboardAndMouse::{
     RegisterHotKey, UnregisterHotKey, HOT_KEY_MODIFIERS,
 };
+use windows::Win32::System::Threading::GetCurrentThreadId;
 use windows::Win32::UI::WindowsAndMessaging::{
-    CallNextHookEx, DispatchMessageW, GetMessageW, SetWindowsHookExW, UnhookWindowsHookEx, HHOOK,
-    KBDLLHOOKSTRUCT, MSG, WH_KEYBOARD_LL, WH_MOUSE_LL, WM_HOTKEY, WM_KEYDOWN,
-    WM_KEYUP, WM_LBUTTONDOWN, WM_MBUTTONDOWN, WM_RBUTTONDOWN, WM_SYSKEYDOWN,
+    CallNextHookEx, DispatchMessageW, GetMessageW, PostThreadMessageW, SetWindowsHookExW,
+    UnhookWindowsHookEx, HHOOK, KBDLLHOOKSTRUCT, MSG, WH_KEYBOARD_LL, WH_MOUSE_LL, WM_HOTKEY,
+    WM_KEYDOWN, WM_KEYUP, WM_LBUTTONDOWN, WM_MBUTTONDOWN, WM_QUIT, WM_RBUTTONDOWN, WM_SYSKEYDOWN,
     WM_SYSKEYUP, WM_XBUTTONDOWN,
 };
 
@@ -179,7 +180,11 @@ pub struct InputManager {
     _hotkey: HotkeyManager,
     _kbd_hook: KeyboardHook,
     _mouse_hook: MouseHook,
+    thread_id: u32,
 }
+
+unsafe impl Send for InputManager {}
+unsafe impl Sync for InputManager {}
 
 impl InputManager {
     pub fn new_with_config(sender: Sender<InputEvent>, config: HotkeyConfig) -> windows::core::Result<Self> {
@@ -188,11 +193,13 @@ impl InputManager {
         let hotkey = HotkeyManager::new(1337, HOT_KEY_MODIFIERS(config.modifiers), config.vk)?;
         let kbd_hook = KeyboardHook::new(keyboard_proc)?;
         let mouse_hook = MouseHook::new(mouse_proc)?;
+        let thread_id = unsafe { GetCurrentThreadId() };
 
         Ok(Self {
             _hotkey: hotkey,
             _kbd_hook: kbd_hook,
             _mouse_hook: mouse_hook,
+            thread_id,
         })
     }
 
@@ -206,6 +213,13 @@ impl InputManager {
                 }
                 let _ = DispatchMessageW(&msg);
             }
+        }
+        println!("InputManager: Message loop exited.");
+    }
+
+    pub fn request_stop(&self) {
+        unsafe {
+            let _ = PostThreadMessageW(self.thread_id, WM_QUIT, WPARAM(0), LPARAM(0));
         }
     }
 }

@@ -62,3 +62,11 @@
 - [x] Implement exit on any key: any non-arrow key (except modifiers) stops the glide
 - [x] Commit & Merge to main
 
+## Phase 6: Refinement & Hygiene
+- [ ] Implement graceful input-thread shutdown
+- [ ] Gate system-level tests to avoid CI flakiness
+- [ ] Improve error handling for event delivery and config persistence
+- [ ] Add defensive checks for UI resource allocation
+- [ ] Update README.md with developer notes on testing and shutdown
+- [ ] Commit & Merge to main
+
