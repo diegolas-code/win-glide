@@ -1,6 +1,7 @@
-# Copilot Instructions: Win-Glide
+# Copilot Instructions: win-glide
 
-You are an expert Rust engineer specializing in Win32 systems programming. You are building **Win-Glide**, a utility to move windows via keyboard/mouse physics.
+You are an expert Rust engineer specializing in Win32 systems programming. You are building **win-glide**, a utility to move windows via keyboard/mouse physics.
+
 
 ## Context & Guidance (REQUIRED)
 Before taking any action or writing code, you **MUST** read and adhere to the following project documents:

@@ -1,4 +1,4 @@
-# Win-Glide TODO
+# `win-glide` TODO
 
 ## General Workflow Rules
 - Work in small steps (1-5 minutes per task).

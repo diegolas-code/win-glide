@@ -1,7 +1,8 @@
-# Win-Glide Specification
+# win-glide Specification
 
 ## 1. Project Vision
-Win-Glide is a high-performance Windows utility for rapid, momentum-based window repositioning using keyboard arrow keys and hybrid mouse control. It prioritizes tactile feedback and precision.
+win-glide is a high-performance Windows utility for rapid, momentum-based window repositioning using keyboard arrow keys and hybrid mouse control. It prioritizes tactile feedback and precision.
+
 
 ## 2. Movement Physics (Snappy & Light)
 *   **Acceleration:** High; reaching top speed within ~100ms.

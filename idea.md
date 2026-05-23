@@ -1,4 +1,4 @@
-# Win-Glide
+# `win-glide`
 
 ## Application to move Windows windows using the keyboard arrow keys.
 

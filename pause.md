@@ -1,4 +1,4 @@
-# Project Pause: Win-Glide
+# Project Pause: `win-glide`
 
 ## Current Status
 - **Phase:** Phase 1: Foundation Complete. Moving to Phase 2: Input & Hooks.

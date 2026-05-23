@@ -1,6 +1,7 @@
-# Win-Glide
+# win-glide
 
-Win-Glide is a high-performance Windows utility designed for rapid, momentum-based window repositioning using keyboard arrow keys and hybrid mouse control. It prioritizes tactile feedback, precision, and a "snappy yet light" physics model.
+win-glide is a high-performance Windows utility designed for rapid, momentum-based window repositioning using keyboard arrow keys and hybrid mouse control. It prioritizes tactile feedback, precision, and a "snappy yet light" physics model.
+
 
 ## Features
 - **Keyboard Control:** Move the active window using arrow keys with fluid acceleration and friction.
@@ -28,8 +29,8 @@ Install both prerequisites before running `cargo build` or `cargo run` so the Wi
 
 ### 1. Clone the Repository
 ```bash
-git clone git@github.com:diegolas-code/win-glide.git
-cd win-glide
+git clone git@github.com:diegolas-code/`win-glide`.git
+cd `win-glide`
 ```
 
 ### 2. Build the Project
