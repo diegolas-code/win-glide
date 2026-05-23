@@ -1,12 +1,12 @@
 # win-glide Pause State
 
-## Current Status: Shutdown Improved (v0.1.7)
-The application now exits gracefully on Ctrl+C.
+## Current Status: Physics Tuned (v0.1.8)
+The application now has a higher top speed and more weighted acceleration.
 
 ### Completed Recently:
-- **Graceful Shutdown:** Added a Windows console control handler to catch Ctrl+C and shut down the application cleanly.
+- **Physics Tuning:** Increased top speed to 4,000 pixels/s and decreased acceleration to 6,000 pixels/s² for a more powerful feel and longer spin-up time.
+- **Graceful Shutdown:** Added a Windows console control handler to catch Ctrl+C.
 - **Asymmetry Fix:** Resolved issue where movement was faster left/up than right/down.
-- **Continuous Thrust:** Implemented state-based key tracking for smooth 120Hz acceleration.
 
 ### Next Steps / Future Ideas:
 - **Visual Effects:** Add subtle pulsing or "fade-in" animation for the tint.

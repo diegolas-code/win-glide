@@ -52,5 +52,6 @@
 - [x] Tune physics: align acceleration and top speed with "Snappy & Light" model
 - [x] Fix movement asymmetry: resolve positive direction lag caused by integer truncation
 - [x] Implement graceful shutdown: handle Ctrl+C via SetConsoleCtrlHandler
+- [x] Tune physics: increase top speed and decrease acceleration for better feel
 - [x] Commit & Merge to main
 
