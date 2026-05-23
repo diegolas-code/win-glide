@@ -1,12 +1,13 @@
 # win-glide Pause State
 
-## Current Status: Overlay Refined (v0.1.3)
-The application visuals have been updated to use a modern full-window tint instead of a simple border.
+## Current Status: Overlay Refined (v0.1.4)
+The application visuals have been updated with a full-window tint and a 10px top extension.
 
 ### Completed Recently:
+- **Overlay Top Extension:** Extended the overlay by 10px above the window top to create a "header" effect.
 - **Overlay Refinement:** Replaced the 3px blue border with a 20% opacity solid blue tint covering the entire active window.
 - **Code Cleanup:** Removed unused rendering imports and simplified `src/ui.rs`.
-- **Keyboard Hook Fix:** Resolved the "stuck modifier" bug by ensuring `KeyUp` and modifier events are never suppressed.
+- **Keyboard Hook Fix:** Resolved the "stuck modifier" bug.
 - **Mouse Input:** Switched from movement tracking to click-to-deactivate.
 
 ### Next Steps / Future Ideas:

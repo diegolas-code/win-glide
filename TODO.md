@@ -47,5 +47,6 @@
 - [x] Fix keyboard interference (stuck modifiers) by allowing KeyUp/Modifiers
 - [x] Replace mouse movement tracking with click-to-deactivate for safety
 - [x] Refine overlay: replace 3px border with full-window solid tint
+- [x] Extend overlay: add 10px top extension "header"
 - [x] Commit & Merge to main
 
