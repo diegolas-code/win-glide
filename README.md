@@ -1,30 +1,38 @@
 # win-glide
 
-win-glide is a high-performance Windows utility designed for rapid, momentum-based window repositioning using keyboard arrow keys and hybrid mouse control. It prioritizes tactile feedback, precision, and a "snappy yet light" physics model.
+win-glide is a high-performance Windows utility designed for rapid, momentum-based window repositioning using keyboard arrow keys. It prioritizes tactile feedback, precision, and a "snappy yet light" physics model, allowing you to "glide" windows across your desktop with ease.
 
-## Features
-- **Keyboard Thrust:** Move the active window using arrow keys with fluid acceleration and friction (~120Hz physics loop).
-- **Global Activation:** Toggle movement sessions instantly using a customizable global hotkey (Default: `Ctrl + Alt + F10`).
-- **Visual Feedback:** A sleek, transparent 3px blue border highlights the window currently being moved.
-- **DPI & Multi-Monitor Aware:** Automatically scales movement speed and visuals based on monitor DPI; respects work areas and monitor boundaries.
-- **Configurable:** Fine-tune acceleration, friction, top speed, and hotkeys via a simple `config.json` file.
-- **Safe & Non-Blocking:** Built with Rust and native low-level Win32 hooks (`WH_KEYBOARD_LL`, `WH_MOUSE_LL`) for zero-latency interaction.
+## Core Features
+- **Fluid Keyboard Movement:** Move active windows using arrow keys with high-precision acceleration and friction, powered by a 120Hz physics loop.
+- **Snappy & Light Physics:** Uses a **Dual-Friction Model** for slow, deliberate acceleration to high speeds while maintaining a nearly instant "glide stop" upon release.
+- **Modern Visual Feedback:** A full-window semi-transparent blue tint with a 10px top "header" extension clearly identifies the active glide target.
+- **Free Multi-Monitor Movement:** Glide windows seamlessly across your entire virtual desktop. Windows can be "parked" partially off-screen while maintaining a safe 150px visible margin.
+- **Atomic Synchronization:** Both the window and the visual overlay move in a single atomic operation (`DeferWindowPos`), eliminating lag and flickering.
+- **Safe & Responsive:**
+    - **Maximized Window Guard:** Prevents accidental movement of maximized windows.
+    - **Panic Button:** Any mouse click immediately deactivates the glide session for instant control recovery.
+    - **Graceful Shutdown:** Cleanly exits and releases system hooks on `Ctrl+C`.
 
 ## How to Use
 1.  **Launch:** Run the application (`cargo run` or the compiled binary).
-2.  **Activate:** Press **`Ctrl + Alt + F10`** while any window is focused to start a "glide" session. A blue border will appear.
-3.  **Move:** Use the **Arrow Keys** to apply thrust to the window.
-4.  **Exit:** Press **`Esc`**, click away (focus loss), or wait 3 seconds for the **Idle Timeout** to automatically end the session.
+2.  **Activate:** Press **`Ctrl + Alt + F10`** while any window is focused to start a "glide" session. A blue tint will appear over the window.
+3.  **Move:** Use the **Arrow Keys** to apply thrust. Acceleration is continuous; hold the keys to reach top speed (~1.3s spin-up).
+4.  **Exit:** 
+    - **Keys:** Press **`Esc`** or simply let the window glide to a stop.
+    - **Mouse:** **Click anywhere** to instantly deactivate the session.
+    - **Timeout:** The session automatically ends after **5 seconds** of inactivity.
+    - **Focus Loss:** Switching windows or losing focus will also end the session.
 
 ## Configuration
-Upon first run, `win-glide` generates a `config.json` in the application directory. You can customize the following:
+Upon first run, `win-glide` generates a `config.json` in the application directory. You can customize the physics and hotkeys:
 
 ```json
 {
   "physics": {
-    "acceleration": 2000.0,
+    "acceleration": 3000.0,
     "friction": 10.0,
-    "top_speed": 1500.0
+    "thrust_friction": 0.5,
+    "top_speed": 4000.0
   },
   "hotkey": {
     "modifiers": 3,
@@ -32,37 +40,27 @@ Upon first run, `win-glide` generates a `config.json` in the application directo
   }
 }
 ```
-*Note: Modifiers and Virtual Key (vk) codes follow Win32 standards.*
+*Note: Acceleration and top speed are in pixels per second. Modifiers (Default: Ctrl+Alt) and Virtual Key (vk) codes follow Win32 standards.*
 
 ## Build & Run Requirements
 This project targets Windows 10/11 on x86_64 and needs:
 
-- A recent Rust toolchain with `cargo`, installed via [rustup.rs](https://rustup.rs/) for Windows.
-- **Microsoft Visual C++ Build Tools (MSVC)** including the Windows 10/11 SDK, available from the [Visual Studio Build Tools installer](https://visualstudio.microsoft.com/visual-cpp-build-tools/).
+- A recent Rust toolchain with `cargo` (installed via [rustup.rs](https://rustup.rs/)).
+- **Microsoft Visual C++ Build Tools (MSVC)** including the Windows 10/11 SDK.
 
-Install both prerequisites before running `cargo build` or `cargo run` so the Win32 bindings can link successfully on Windows.
-
-## Installation & Development
-
-### 1. Clone the Repository
-```bash
-git clone git@github.com:diegolas-code/win-glide.git
-cd win-glide
-```
-
-### 2. Build and Run
+### Build and Run
 ```bash
 cargo build --release
 ./target/release/win-glide.exe
 ```
 
-### 3. Run Tests
+### Run Tests
 ```bash
 cargo test
 ```
 
 ## Development Workflow
-This project follows **Test-Driven Development (TDD)** and strict idiomatic Rust standards. The repository uses a `dev` branch for features and `master` for stable releases. CI is configured via GitHub Actions to run `fmt`, `clippy`, and `test` on every push.
+This project follows **strict idiomatic Rust standards** and mandatory documentation habits. Detailed technical decisions and bug fixes are recorded in the `.history/` directory.
 
 ## License
 This project is licensed under the [MIT License](LICENSE).
