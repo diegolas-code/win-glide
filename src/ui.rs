@@ -85,7 +85,17 @@ impl Overlay {
 
         unsafe {
             let screen_dc = windows::Win32::Graphics::Gdi::GetDC(None);
+            if screen_dc.is_invalid() {
+                eprintln!("Overlay: Failed to get screen DC");
+                return Ok(());
+            }
+
             let mem_dc = CreateCompatibleDC(screen_dc);
+            if mem_dc.is_invalid() {
+                eprintln!("Overlay: Failed to create compatible DC");
+                windows::Win32::Graphics::Gdi::ReleaseDC(None, screen_dc);
+                return Ok(());
+            }
 
             let bmi = BITMAPINFO {
                 bmiHeader: BITMAPINFOHEADER {
@@ -101,44 +111,58 @@ impl Overlay {
             };
 
             let mut bits = std::ptr::null_mut();
-            let bitmap = CreateDIBSection(
+            let result = CreateDIBSection(
                 mem_dc,
                 &bmi,
                 DIB_RGB_COLORS,
                 &mut bits,
                 None,
                 0,
-            )?;
+            );
 
-            std::ptr::copy_nonoverlapping(bgra.as_ptr(), bits as *mut u8, bgra.len());
+            match result {
+                Ok(bitmap) => {
+                    if !bits.is_null() {
+                        std::ptr::copy_nonoverlapping(bgra.as_ptr(), bits as *mut u8, bgra.len());
 
-            let old_obj = SelectObject(mem_dc, bitmap);
+                        let old_obj = SelectObject(mem_dc, bitmap);
 
-            let pt_src = POINT { x: 0, y: 0 };
-            let pt_dst = POINT { x: rect.left, y: rect.top - OVERLAY_TOP_EXTENSION };
-            let size = SIZE { cx: width, cy: height };
+                        let pt_src = POINT { x: 0, y: 0 };
+                        let pt_dst = POINT { x: rect.left, y: rect.top - OVERLAY_TOP_EXTENSION };
+                        let size = SIZE { cx: width, cy: height };
 
-            let blend = BLENDFUNCTION {
-                BlendOp: AC_SRC_OVER as u8,
-                BlendFlags: 0,
-                SourceConstantAlpha: 255,
-                AlphaFormat: AC_SRC_ALPHA as u8,
-            };
+                        let blend = BLENDFUNCTION {
+                            BlendOp: AC_SRC_OVER as u8,
+                            BlendFlags: 0,
+                            SourceConstantAlpha: 255,
+                            AlphaFormat: AC_SRC_ALPHA as u8,
+                        };
 
-            UpdateLayeredWindow(
-                self.hwnd,
-                screen_dc,
-                Some(&pt_dst),
-                Some(&size),
-                mem_dc,
-                Some(&pt_src),
-                None,
-                Some(&blend),
-                ULW_ALPHA,
-            )?;
+                        if let Err(e) = UpdateLayeredWindow(
+                            self.hwnd,
+                            screen_dc,
+                            Some(&pt_dst),
+                            Some(&size),
+                            mem_dc,
+                            Some(&pt_src),
+                            None,
+                            Some(&blend),
+                            ULW_ALPHA,
+                        ) {
+                            eprintln!("Overlay: UpdateLayeredWindow failed: {:?}", e);
+                        }
 
-            let _ = SelectObject(mem_dc, old_obj);
-            let _ = DeleteObject(bitmap);
+                        let _ = SelectObject(mem_dc, old_obj);
+                    } else {
+                        eprintln!("Overlay: CreateDIBSection succeeded but bits pointer is null");
+                    }
+                    let _ = DeleteObject(bitmap);
+                }
+                Err(e) => {
+                    eprintln!("Overlay: CreateDIBSection failed: {:?}", e);
+                }
+            }
+
             let _ = DeleteDC(mem_dc);
             windows::Win32::Graphics::Gdi::ReleaseDC(None, screen_dc);
         }
