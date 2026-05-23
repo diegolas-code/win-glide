@@ -69,7 +69,7 @@ impl App {
             }
         }
         
-        println!("App: Graceful shutdown complete.");
+        println!("App: Shutdown complete.");
     }
 
     fn pump_messages(&mut self) {

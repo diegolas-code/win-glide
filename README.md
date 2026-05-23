@@ -11,7 +11,7 @@ win-glide is a high-performance Windows utility designed for rapid, momentum-bas
 - **Safe & Responsive:**
     - **Maximized Window Guard:** Prevents accidental movement of maximized windows.
     - **Panic Button:** Any mouse click immediately deactivates the glide session for instant control recovery.
-    - **Graceful Shutdown:** Cleanly exits and releases system hooks on `Ctrl+C`.
+    - **Shutdown:** Cleanly exits and releases system hooks on `Ctrl+C`.
 
 ## How to Use
 1.  **Launch:** Run the application (`cargo run` or the compiled binary).
