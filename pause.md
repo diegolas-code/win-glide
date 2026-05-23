@@ -10,6 +10,7 @@
 - Verified all Foundation logic with unit tests.
 - Configured `windows-rs` dependencies for Win32 UI and Graphics.
 - Set up GitHub Actions CI workflow for automated `fmt`, `clippy`, and `test`.
+- Created project `README.md` with build and run instructions.
 - Initialized Git repository and committed Phase 1 progress.
 
 ## Next Steps
