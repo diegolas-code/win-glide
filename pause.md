@@ -1,18 +1,18 @@
 # win-glide Pause State
 
-## Current Status: Phase 5 Complete (v0.1.2)
-The application is now fully functional with core features implemented and critical bugs resolved.
+## Current Status: Overlay Refined (v0.1.3)
+The application visuals have been updated to use a modern full-window tint instead of a simple border.
 
 ### Completed Recently:
+- **Overlay Refinement:** Replaced the 3px blue border with a 20% opacity solid blue tint covering the entire active window.
+- **Code Cleanup:** Removed unused rendering imports and simplified `src/ui.rs`.
 - **Keyboard Hook Fix:** Resolved the "stuck modifier" bug by ensuring `KeyUp` and modifier events are never suppressed.
-- **Mouse Input:** Switched from movement tracking to click-to-deactivate. This provides a safer and more intuitive exit path for the user.
-- **Physics & Rendering:** Movement is smooth using `f32` precision, and the overlay remains responsive via the integrated message pump.
-- **Documentation:** Updated history logs and TODO list.
+- **Mouse Input:** Switched from movement tracking to click-to-deactivate.
 
 ### Next Steps / Future Ideas:
-- **Phase 6 (Potential):** Refine the overlay visuals (e.g., rounded corners, pulsing effect).
+- **Phase 6 (Potential):** Add subtle pulsing or "fade-in" animation for the tint.
 - **Optimization:** Reduce CPU usage of the physics loop when idle.
-- **Packaging:** Create a release build and potentially a simple installer or "run on startup" option.
+- **Packaging:** Create a release build and potentially a simple installer.
 
 ## System Context:
 - Operating System: Windows 10/11
