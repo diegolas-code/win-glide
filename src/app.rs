@@ -116,19 +116,24 @@ impl App {
                 InputEvent::KeyUp(vk) => {
                     self.handle_key_up(vk);
                 }
-                InputEvent::MouseMove { dx: _, dy: _ } => {
-                    // TODO: Handle mouse handoff
+                InputEvent::MouseButtonDown => {
+                    println!("Mouse click detected, deactivating");
+                    self.deactivate_session();
                 }
             }
         }
     }
 
     fn activate_session(&mut self) {
+        if self.active_window.is_some() {
+            return;
+        }
         let hwnd = get_active_window();
         if !hwnd.is_invalid() {
             let mut rect = RECT::default();
             unsafe {
                 if GetWindowRect(hwnd, &mut rect).is_ok() {
+                    println!("App: Activating session for window: {:?}", hwnd);
                     self.active_window = Some(hwnd);
                     self.window_rect = rect;
                     self.pos_x = rect.left as f32;
@@ -136,10 +141,6 @@ impl App {
                     self.dpi = Platform::get_dpi_for_window(hwnd);
 
                     crate::input::set_session_active(true);
-
-                    // Note: We should probably keep the base config and apply scaling to a runtime state
-                    // For now, let's just log it.
-                    println!("Session activated for window: {:?} (DPI: {})", hwnd, self.dpi);
 
                     let _ = self.overlay.redraw(self.window_rect);
                     self.overlay.show(true);
@@ -149,11 +150,14 @@ impl App {
     }
 
     fn deactivate_session(&mut self) {
+        if self.active_window.is_none() {
+            return;
+        }
+        println!("App: Deactivating session");
         crate::input::set_session_active(false);
         self.active_window = None;
         self.physics.velocity = Vector2D::default();
         self.overlay.show(false);
-        println!("Session deactivated");
     }
 
     fn handle_key_down(&mut self, vk: u32, dt: f32) -> bool {

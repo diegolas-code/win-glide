@@ -4,8 +4,9 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     CallNextHookEx, DispatchMessageW, GetMessageW, SetWindowsHookExW, UnhookWindowsHookEx, HHOOK,
-    KBDLLHOOKSTRUCT, MSG, MSLLHOOKSTRUCT, WH_KEYBOARD_LL, WH_MOUSE_LL, WM_HOTKEY, WM_KEYDOWN,
-    WM_KEYUP, WM_MOUSEMOVE, WM_SYSKEYDOWN, WM_SYSKEYUP,
+    KBDLLHOOKSTRUCT, MSG, WH_KEYBOARD_LL, WH_MOUSE_LL, WM_HOTKEY, WM_KEYDOWN,
+    WM_KEYUP, WM_LBUTTONDOWN, WM_MBUTTONDOWN, WM_RBUTTONDOWN, WM_SYSKEYDOWN,
+    WM_SYSKEYUP, WM_XBUTTONDOWN,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -13,7 +14,7 @@ pub enum InputEvent {
     HotkeyTriggered(i32),
     KeyDown(u32),
     KeyUp(u32),
-    MouseMove { dx: i32, dy: i32 },
+    MouseButtonDown,
 }
 
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -33,22 +34,43 @@ pub fn set_session_active(active: bool) {
 
 fn emit_event(event: InputEvent) {
     if let Some(sender) = EVENT_SENDER.get() {
-        let _ = sender.send(event);
+        if let Err(e) = sender.send(event) {
+            eprintln!("Failed to send event: {:?}", e);
+        }
     }
+}
+
+fn is_modifier(vk_code: u32) -> bool {
+    matches!(vk_code, 0x10..=0x12 | 0x5B..=0x5C | 0xA0..=0xA5)
 }
 
 unsafe extern "system" fn keyboard_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     if code >= 0 {
-        let kbd_struct = unsafe { *(lparam.0 as *const KBDLLHOOKSTRUCT) };
-        let vk_code = kbd_struct.vkCode;
+        let is_active = IS_SESSION_ACTIVE.load(Ordering::Relaxed);
         
-        match wparam.0 as u32 {
-            WM_KEYDOWN | WM_SYSKEYDOWN => emit_event(InputEvent::KeyDown(vk_code)),
-            WM_KEYUP | WM_SYSKEYUP => emit_event(InputEvent::KeyUp(vk_code)),
-            _ => {}
-        }
+        if is_active {
+            let kbd_struct = unsafe { *(lparam.0 as *const KBDLLHOOKSTRUCT) };
+            let vk_code = kbd_struct.vkCode;
+            
+            let is_key_down = match wparam.0 as u32 {
+                WM_KEYDOWN | WM_SYSKEYDOWN => {
+                    emit_event(InputEvent::KeyDown(vk_code));
+                    true
+                }
+                WM_KEYUP | WM_SYSKEYUP => {
+                    emit_event(InputEvent::KeyUp(vk_code));
+                    false
+                }
+                _ => return unsafe { CallNextHookEx(None, code, wparam, lparam) },
+            };
 
-        if IS_SESSION_ACTIVE.load(Ordering::Relaxed) {
+            // DO NOT block modifier keys or KeyUp events to avoid "stuck" state.
+            // Stuck modifiers are especially bad as they change the meaning of subsequent keys
+            // (e.g., stuck Ctrl makes Esc behave like the Windows key).
+            if is_modifier(vk_code) || !is_key_down {
+                return unsafe { CallNextHookEx(None, code, wparam, lparam) };
+            }
+
             // Consume the input so it doesn't reach the target window
             return LRESULT(1);
         }
@@ -57,15 +79,15 @@ unsafe extern "system" fn keyboard_proc(code: i32, wparam: WPARAM, lparam: LPARA
 }
 
 unsafe extern "system" fn mouse_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
-    if code >= 0 && wparam.0 as u32 == WM_MOUSEMOVE {
-        let mouse_struct = unsafe { *(lparam.0 as *const MSLLHOOKSTRUCT) };
-        // In WH_MOUSE_LL, pt contains absolute coordinates. 
-        // We'll calculate deltas in the main loop or just pass the point.
-        // For now, let's pass absolute but we might need deltas.
-        emit_event(InputEvent::MouseMove { 
-            dx: mouse_struct.pt.x, 
-            dy: mouse_struct.pt.y 
-        });
+    if code >= 0 && IS_SESSION_ACTIVE.load(Ordering::Relaxed) {
+        let msg = wparam.0 as u32;
+        if msg == WM_LBUTTONDOWN
+            || msg == WM_RBUTTONDOWN
+            || msg == WM_MBUTTONDOWN
+            || msg == WM_XBUTTONDOWN
+        {
+            emit_event(InputEvent::MouseButtonDown);
+        }
     }
     unsafe { CallNextHookEx(None, code, wparam, lparam) }
 }
@@ -161,6 +183,7 @@ impl InputManager {
         unsafe {
             while GetMessageW(&mut msg, HWND::default(), 0, 0).as_bool() {
                 if msg.message == WM_HOTKEY {
+                    println!("InputManager: Hotkey received (ID: {})", msg.wParam.0);
                     emit_event(InputEvent::HotkeyTriggered(msg.wParam.0 as i32));
                 }
                 let _ = DispatchMessageW(&msg);
@@ -172,6 +195,7 @@ impl InputManager {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use windows::Win32::UI::Input::KeyboardAndMouse::{MOD_ALT, MOD_CONTROL, MOD_SHIFT};
 
     #[test]
     fn test_hotkey_registration() {
