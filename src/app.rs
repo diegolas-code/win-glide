@@ -137,14 +137,15 @@ impl App {
             // Focus loss: if the user clicks away or switches apps, stop movement.
             // We allow either the target window OR our overlay to be in focus.
             let current_active = get_active_window();
-            if let Some(active) = self.active_window {
-                if current_active != active && current_active != self.overlay.hwnd {
-                    println!(
-                        "Focus lost, deactivating (Active: {:?}, Overlay: {:?}, Current: {:?})",
-                        active, self.overlay.hwnd, current_active
-                    );
-                    self.deactivate_session();
-                }
+            if let Some(active) = self.active_window
+                && current_active != active
+                && current_active != self.overlay.hwnd
+            {
+                println!(
+                    "Focus lost, deactivating (Active: {:?}, Overlay: {:?}, Current: {:?})",
+                    active, self.overlay.hwnd, current_active
+                );
+                self.deactivate_session();
             }
         }
     }

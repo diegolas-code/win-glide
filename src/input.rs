@@ -79,10 +79,10 @@ pub fn set_session_active(active: bool) {
 }
 
 fn emit_event(event: InputEvent) {
-    if let Some(sender) = EVENT_SENDER.get() {
-        if let Err(e) = sender.send(event) {
-            eprintln!("Failed to send event: {:?}", e);
-        }
+    if let Some(sender) = EVENT_SENDER.get()
+        && let Err(e) = sender.send(event)
+    {
+        eprintln!("Failed to send event: {:?}", e);
     }
 }
 
@@ -233,7 +233,7 @@ impl InputManager {
         sender: Sender<InputEvent>,
         config: HotkeyConfig,
     ) -> windows::core::Result<Self> {
-        let _ = set_event_sender(sender);
+        set_event_sender(sender);
 
         let hotkey = HotkeyManager::new(1337, HOT_KEY_MODIFIERS(config.modifiers), config.vk)?;
         let kbd_hook = KeyboardHook::new(keyboard_proc)?;
@@ -311,7 +311,7 @@ mod tests {
     fn test_global_dispatcher() {
         let (tx, rx) = crossbeam_channel::unbounded();
         // This might fail if another test already set it, but we'll try.
-        let _ = set_event_sender(tx);
+        set_event_sender(tx);
 
         emit_event(InputEvent::KeyDown(0x5A)); // 'Z'
         let event = rx.recv().unwrap();
