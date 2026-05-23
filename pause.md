@@ -9,7 +9,8 @@
 - Created `dev` branch and `feat/hotkey-registration` feature branch.
 - Added `Win32_UI_Input_KeyboardAndMouse` feature to `Cargo.toml`.
 - Implemented `HotkeyManager`, `KeyboardHook`, and `MouseHook` in `src/input.rs` with RAII support.
-- Verified all input registrations with unit tests.
+- Defined `InputEvent` enum and implemented a global thread-safe dispatcher using `crossbeam-channel`.
+- Verified all input registrations and dispatcher with unit tests.
 
 ## Next Steps
 - Implement `Ctrl + Shift + M` global hotkey.

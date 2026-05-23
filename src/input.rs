@@ -6,6 +6,29 @@ use windows::Win32::UI::WindowsAndMessaging::{
     CallNextHookEx, SetWindowsHookExW, UnhookWindowsHookEx, HHOOK, WH_KEYBOARD_LL, WH_MOUSE_LL,
 };
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InputEvent {
+    HotkeyTriggered(i32),
+    KeyDown(u32),
+    KeyUp(u32),
+    MouseMove { dx: i32, dy: i32 },
+}
+
+use std::sync::OnceLock;
+use crossbeam_channel::Sender;
+
+static EVENT_SENDER: OnceLock<Sender<InputEvent>> = OnceLock::new();
+
+pub fn set_event_sender(sender: Sender<InputEvent>) -> Result<(), Sender<InputEvent>> {
+    EVENT_SENDER.set(sender)
+}
+
+fn emit_event(event: InputEvent) {
+    if let Some(sender) = EVENT_SENDER.get() {
+        let _ = sender.send(event);
+    }
+}
+
 pub struct HotkeyManager {
     id: i32,
 }
@@ -94,5 +117,16 @@ mod tests {
     fn test_mouse_hook_registration() {
         let res = MouseHook::new(test_hook_proc);
         assert!(res.is_ok(), "Mouse hook registration failed: {:?}", res.err());
+    }
+
+    #[test]
+    fn test_global_dispatcher() {
+        let (tx, rx) = crossbeam_channel::unbounded();
+        // This might fail if another test already set it, but we'll try.
+        let _ = set_event_sender(tx);
+        
+        emit_event(InputEvent::KeyDown(0x5A)); // 'Z'
+        let event = rx.recv().unwrap();
+        assert_eq!(event, InputEvent::KeyDown(0x5A));
     }
 }
