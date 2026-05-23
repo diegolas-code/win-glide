@@ -87,8 +87,8 @@ impl App {
 
     fn check_exit_conditions(&mut self, now: Instant) {
         if self.active_window.is_some() {
-            // Idle timeout: 3 seconds
-            if now.duration_since(self.last_input) > Duration::from_secs(3) {
+            // Idle timeout: 5 seconds
+            if now.duration_since(self.last_input) > Duration::from_secs(5) {
                 println!("Idle timeout reached");
                 self.deactivate_session();
                 return;
@@ -214,9 +214,9 @@ impl App {
                 new_rect.left = self.pos_x.round() as i32;
                 new_rect.top = self.pos_y.round() as i32;
 
-                // Limit off-screen movement: at least 50px must stay visible on the virtual desktop
+                // Limit off-screen movement: at least 150px must stay visible on the virtual desktop
                 let vs = Platform::get_virtual_screen_rect();
-                let min_visible = 50;
+                let min_visible = 150;
 
                 // Clamp horizontal
                 if new_rect.left < vs.left - width + min_visible {
