@@ -5,12 +5,11 @@ win-glide is a high-performance Windows utility designed for rapid, momentum-bas
 ## Core Features
 - **Fluid Keyboard Movement:** Move active windows using arrow keys with high-precision acceleration and friction, powered by a 120Hz physics loop.
 - **Snappy & Light Physics:** Uses a **Dual-Friction Model** for slow, deliberate acceleration to high speeds while maintaining a nearly instant "glide stop" upon release.
-- **Modern Visual Feedback:** A full-window semi-transparent blue tint with a 10px top "header" extension clearly identifies the active glide target.
+- **Modern Visual Feedback:** A full-window semi-transparent blue tint clearly identifies the active glide target.
 - **Free Multi-Monitor Movement:** Glide windows seamlessly across your entire virtual desktop. Windows can be "parked" partially off-screen while maintaining a safe 150px visible margin.
-- **Atomic Synchronization:** Both the window and the visual overlay move in a single atomic operation (`DeferWindowPos`), eliminating lag and flickering.
 - **Safe & Responsive:**
     - **Maximized Window Guard:** Prevents accidental movement of maximized windows.
-    - **Panic Button:** Any mouse click immediately deactivates the glide session for instant control recovery.
+    - **Panic Exit:** Any keyboard input or mouse click immediately deactivates the glide session for instant control recovery.
     - **Shutdown:** Cleanly exits and releases system hooks on `Ctrl+C`.
 
 ## How to Use
@@ -18,7 +17,7 @@ win-glide is a high-performance Windows utility designed for rapid, momentum-bas
 2.  **Activate:** Press **`Ctrl + Alt + F10`** while any window is focused to start a "glide" session. A blue tint will appear over the window.
 3.  **Move:** Use the **Arrow Keys** to apply thrust. Acceleration is continuous; hold the keys to reach top speed (~1.3s spin-up).
 4.  **Exit:** 
-    - **Keys:** Press **`Esc`** or simply let the window glide to a stop.
+    - **Keys:** Press **`Esc`** or **any non-arrow key** to simply let the window glide to a stop.
     - **Mouse:** **Click anywhere** to instantly deactivate the session.
     - **Timeout:** The session automatically ends after **5 seconds** of inactivity.
     - **Focus Loss:** Switching windows or losing focus will also end the session.
