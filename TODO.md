@@ -41,6 +41,7 @@
 - [x] Implement `serde` based JSON config loading
 - [x] Add idle timeout and exit condition checks
 - [x] Finalize multi-monitor edge case handling
+- [x] Fix window hang (message pump) and movement (f32 accumulation)
 - [x] Finalize project README.md with usage and config info
 - [x] Commit & Merge to main
 

@@ -1,16 +1,16 @@
 # Project Pause: `win-glide`
 
 ## Current Status
-- **Phase:** Project Feature-Complete (v0.1.0).
-- **Branch:** `dev` (Ready for merge to `master`).
-- **Workflow:** TDD-driven, idiomatic Rust 2024.
+- **Phase:** Troubleshooting & Refinement (v0.1.1).
+- **Branch:** `fix/window-hang-and-movement`
+- **Workflow:** Systematic Debugging, TDD-driven.
 
 ## Last Actions
-- Completed all 5 implementation phases.
-- Implemented core physics engine, global input hooks, and visual overlay.
-- Added JSON configuration support and multi-monitor boundary handling.
-- Updated `README.md` with comprehensive usage, build, and configuration instructions.
-- Verified system-wide behavior through integration and unit tests.
+- Identified root cause of window hang: main thread was not pumping Win32 messages for the overlay window.
+- Identified root cause of movement failure: `i32` truncation of sub-pixel movement.
+- Implemented `pump_messages` in `App::run`.
+- Refactored `App` to use `f32` for position accumulation (`pos_x`, `pos_y`).
+- Added diagnostic logging for input events.
 
 ## Next Steps
 - Merge `dev` into `master`.
