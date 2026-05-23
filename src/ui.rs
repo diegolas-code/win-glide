@@ -9,7 +9,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
     SW_SHOW, WNDCLASSW, WS_EX_LAYERED, WS_EX_TOPMOST, WS_EX_TRANSPARENT, WS_POPUP,
     UpdateLayeredWindow, ULW_ALPHA,
 };
-use tiny_skia::{Color, Paint, PathBuilder, Pixmap, Stroke};
+use tiny_skia::{Color, Pixmap};
 
 pub struct Overlay {
     pub hwnd: HWND,
@@ -64,25 +64,9 @@ impl Overlay {
         }
 
         let mut pixmap = Pixmap::new(width as u32, height as u32).unwrap();
-        pixmap.fill(Color::TRANSPARENT);
-
-        let mut paint = Paint::default();
-        paint.set_color_rgba8(0, 120, 215, 255); // A nice blue
-        paint.anti_alias = true;
-
-        let stroke = Stroke {
-            width: 3.0,
-            ..Default::default()
-        };
-
-        let path = PathBuilder::from_rect(tiny_skia::Rect::from_ltrb(
-            1.5,
-            1.5,
-            width as f32 - 1.5,
-            height as f32 - 1.5,
-        ).unwrap());
-
-        pixmap.stroke_path(&path, &paint, &stroke, tiny_skia::Transform::identity(), None);
+        // Fill the entire pixmap with a semi-transparent tint
+        // Color: Win-glide blue (0, 120, 215) at ~20% opacity (alpha: 50)
+        pixmap.fill(Color::from_rgba8(0, 120, 215, 50));
 
         // Convert RGBA to BGRA for Win32
         let mut bgra = pixmap.data().to_vec();
