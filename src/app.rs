@@ -95,11 +95,12 @@ impl App {
                 return;
             }
 
-            // Focus loss
+            // Focus loss: allow either the target window or the overlay to be foreground
             let current_active = get_active_window();
             if let Some(active) = self.active_window {
-                if current_active != active {
-                    println!("Focus lost, deactivating");
+                if current_active != active && current_active != self.overlay.hwnd {
+                    println!("Focus lost, deactivating (Active: {:?}, Overlay: {:?}, Current: {:?})", 
+                        active, self.overlay.hwnd, current_active);
                     self.deactivate_session();
                 }
             }

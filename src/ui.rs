@@ -6,7 +6,7 @@ use windows::Win32::Graphics::Gdi::{
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     CreateWindowExW, DefWindowProcW, DeferWindowPos, RegisterClassW, CS_HREDRAW, CS_OWNDC, CS_VREDRAW,
-    CW_USEDEFAULT, HDWP, SW_HIDE, SW_SHOW, WNDCLASSW, WS_EX_LAYERED,
+    CW_USEDEFAULT, HDWP, SW_HIDE, SW_SHOW, WNDCLASSW, WS_EX_LAYERED, WS_EX_NOACTIVATE,
     WS_EX_TRANSPARENT, WS_POPUP, UpdateLayeredWindow, ULW_ALPHA, SWP_NOACTIVATE, SWP_NOZORDER,
 };
 use tiny_skia::{Color, Pixmap};
@@ -39,7 +39,7 @@ impl Overlay {
 
         let hwnd = unsafe {
             CreateWindowExW(
-                WS_EX_LAYERED | WS_EX_TRANSPARENT,
+                WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_NOACTIVATE,
                 class_name,
                 w!("win-glide overlay"),
                 WS_POPUP,
