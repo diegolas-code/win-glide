@@ -16,13 +16,19 @@ pub enum InputEvent {
     MouseMove { dx: i32, dy: i32 },
 }
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::OnceLock;
 use crossbeam_channel::Sender;
 
 static EVENT_SENDER: OnceLock<Sender<InputEvent>> = OnceLock::new();
+static IS_SESSION_ACTIVE: AtomicBool = AtomicBool::new(false);
 
 pub fn set_event_sender(sender: Sender<InputEvent>) {
     let _ = EVENT_SENDER.set(sender);
+}
+
+pub fn set_session_active(active: bool) {
+    IS_SESSION_ACTIVE.store(active, Ordering::Relaxed);
 }
 
 fn emit_event(event: InputEvent) {
@@ -40,6 +46,11 @@ unsafe extern "system" fn keyboard_proc(code: i32, wparam: WPARAM, lparam: LPARA
             WM_KEYDOWN | WM_SYSKEYDOWN => emit_event(InputEvent::KeyDown(vk_code)),
             WM_KEYUP | WM_SYSKEYUP => emit_event(InputEvent::KeyUp(vk_code)),
             _ => {}
+        }
+
+        if IS_SESSION_ACTIVE.load(Ordering::Relaxed) {
+            // Consume the input so it doesn't reach the target window
+            return LRESULT(1);
         }
     }
     unsafe { CallNextHookEx(None, code, wparam, lparam) }

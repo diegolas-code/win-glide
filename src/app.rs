@@ -135,6 +135,8 @@ impl App {
                     self.pos_y = rect.top as f32;
                     self.dpi = Platform::get_dpi_for_window(hwnd);
 
+                    crate::input::set_session_active(true);
+
                     // Note: We should probably keep the base config and apply scaling to a runtime state
                     // For now, let's just log it.
                     println!("Session activated for window: {:?} (DPI: {})", hwnd, self.dpi);
@@ -147,6 +149,7 @@ impl App {
     }
 
     fn deactivate_session(&mut self) {
+        crate::input::set_session_active(false);
         self.active_window = None;
         self.physics.velocity = Vector2D::default();
         self.overlay.show(false);
