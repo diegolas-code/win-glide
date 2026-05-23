@@ -20,7 +20,7 @@
 - [x] Implement global hotkey registration (`Ctrl + Shift + M`)
 - [x] Implement `WH_KEYBOARD_LL` hook for arrow key detection
 - [x] Implement `WH_MOUSE_LL` hook for delta tracking
-- [ ] Add integration tests for input event processing
+- [ ] Add integration tests for input event processing [In Progress]
 - [x] Set up message queuing for thread-safe input processing
 - [ ] Commit & Merge to main
 

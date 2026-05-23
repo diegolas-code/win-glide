@@ -3,7 +3,9 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
     RegisterHotKey, UnregisterHotKey, HOT_KEY_MODIFIERS, MOD_ALT, MOD_CONTROL, MOD_SHIFT,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    CallNextHookEx, SetWindowsHookExW, UnhookWindowsHookEx, HHOOK, WH_KEYBOARD_LL, WH_MOUSE_LL,
+    CallNextHookEx, DispatchMessageW, GetMessageW, SetWindowsHookExW, UnhookWindowsHookEx, HHOOK,
+    KBDLLHOOKSTRUCT, MSG, MSLLHOOKSTRUCT, WH_KEYBOARD_LL, WH_MOUSE_LL, WM_HOTKEY, WM_KEYDOWN,
+    WM_KEYUP, WM_MOUSEMOVE, WM_SYSKEYDOWN, WM_SYSKEYUP,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -27,6 +29,34 @@ fn emit_event(event: InputEvent) {
     if let Some(sender) = EVENT_SENDER.get() {
         let _ = sender.send(event);
     }
+}
+
+unsafe extern "system" fn keyboard_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
+    if code >= 0 {
+        let kbd_struct = unsafe { *(lparam.0 as *const KBDLLHOOKSTRUCT) };
+        let vk_code = kbd_struct.vkCode;
+        
+        match wparam.0 as u32 {
+            WM_KEYDOWN | WM_SYSKEYDOWN => emit_event(InputEvent::KeyDown(vk_code)),
+            WM_KEYUP | WM_SYSKEYUP => emit_event(InputEvent::KeyUp(vk_code)),
+            _ => {}
+        }
+    }
+    unsafe { CallNextHookEx(None, code, wparam, lparam) }
+}
+
+unsafe extern "system" fn mouse_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
+    if code >= 0 && wparam.0 as u32 == WM_MOUSEMOVE {
+        let mouse_struct = unsafe { *(lparam.0 as *const MSLLHOOKSTRUCT) };
+        // In WH_MOUSE_LL, pt contains absolute coordinates. 
+        // We'll calculate deltas in the main loop or just pass the point.
+        // For now, let's pass absolute but we might need deltas.
+        emit_event(InputEvent::MouseMove { 
+            dx: mouse_struct.pt.x, 
+            dy: mouse_struct.pt.y 
+        });
+    }
+    unsafe { CallNextHookEx(None, code, wparam, lparam) }
 }
 
 pub struct HotkeyManager {
@@ -88,6 +118,41 @@ impl Drop for MouseHook {
     fn drop(&mut self) {
         unsafe {
             let _ = UnhookWindowsHookEx(self.hhook);
+        }
+    }
+}
+
+pub struct InputManager {
+    _hotkey: HotkeyManager,
+    _kbd_hook: KeyboardHook,
+    _mouse_hook: MouseHook,
+}
+
+impl InputManager {
+    pub fn new(sender: Sender<InputEvent>) -> windows::core::Result<Self> {
+        let _ = set_event_sender(sender);
+        
+        // Ctrl + Shift + M = 0x4D
+        let hotkey = HotkeyManager::new(1, MOD_CONTROL | MOD_SHIFT, 0x4D)?;
+        let kbd_hook = KeyboardHook::new(keyboard_proc)?;
+        let mouse_hook = MouseHook::new(mouse_proc)?;
+        
+        Ok(Self {
+            _hotkey: hotkey,
+            _kbd_hook: kbd_hook,
+            _mouse_hook: mouse_hook,
+        })
+    }
+
+    pub fn run_loop(&self) {
+        let mut msg = MSG::default();
+        unsafe {
+            while GetMessageW(&mut msg, HWND::default(), 0, 0).as_bool() {
+                if msg.message == WM_HOTKEY {
+                    emit_event(InputEvent::HotkeyTriggered(msg.wParam.0 as i32));
+                }
+                let _ = DispatchMessageW(&msg);
+            }
         }
     }
 }
