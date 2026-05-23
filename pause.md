@@ -4,9 +4,9 @@
 The application now features a dual-friction physics model for better acceleration and speed.
 
 ### Completed Recently:
-- **Overlay Sync & Flicker Fix:** Implemented `DeferWindowPos` to ensure the target window and overlay move atomically. Added `SWP_NOCOPYBITS` to eliminate flicker.
+- **Advanced Flicker Reduction:** Implemented dynamic window ownership and added `SWP_DEFERERASE` / `SWP_NOSENDCHANGING` flags to eliminate lingering flicker during high-speed gliding.
+- **Overlay Sync:** Switched to `DeferWindowPos` for atomic movement of the window and overlay.
 - **Visibility & Timeout Refinement:** Increased minimum off-screen visibility to 150px and idle timeout to 5 seconds.
-- **Limited Off-Screen Movement:** Windows can now move partially off-screen.
 
 ### Next Steps / Future Ideas:
 - **Visual Effects:** Add subtle pulsing or "fade-in" animation for the tint.

@@ -8,8 +8,8 @@ use std::collections::HashSet;
 use std::time::{Duration, Instant};
 use windows::Win32::Foundation::{HWND, RECT};
 use windows::Win32::UI::WindowsAndMessaging::{
-    BeginDeferWindowPos, DeferWindowPos, EndDeferWindowPos, GetWindowRect, SWP_NOACTIVATE,
-    SWP_NOCOPYBITS, SWP_NOSIZE, SWP_NOZORDER,
+    BeginDeferWindowPos, DeferWindowPos, EndDeferWindowPos, GetWindowRect, SWP_DEFERERASE,
+    SWP_NOACTIVATE, SWP_NOCOPYBITS, SWP_NOSENDCHANGING, SWP_NOSIZE, SWP_NOZORDER,
 };
 
 pub struct App {
@@ -157,6 +157,7 @@ impl App {
 
                     crate::input::set_session_active(true);
 
+                    self.overlay.set_owner(hwnd);
                     let _ = self.overlay.redraw(self.window_rect);
                     self.overlay.show(true);
                 }
@@ -245,6 +246,10 @@ impl App {
                     if let Ok(hdwp) = BeginDeferWindowPos(2) {
                         let mut hdwp = hdwp;
                         
+                        // Combined flags for smoothest movement
+                        let flags = SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOSIZE | 
+                                   SWP_NOCOPYBITS | SWP_DEFERERASE | SWP_NOSENDCHANGING;
+
                         // Move target window
                         if let Ok(h) = DeferWindowPos(
                             hdwp,
@@ -254,7 +259,7 @@ impl App {
                             new_rect.top,
                             0,
                             0,
-                            SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOSIZE | SWP_NOCOPYBITS,
+                            flags,
                         ) {
                             hdwp = h;
                         }

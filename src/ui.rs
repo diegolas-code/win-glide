@@ -5,8 +5,8 @@ use windows::Win32::Graphics::Gdi::{
     AC_SRC_OVER, BITMAPINFO, BITMAPINFOHEADER, BLENDFUNCTION, DIB_RGB_COLORS,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    CreateWindowExW, DefWindowProcW, DeferWindowPos, RegisterClassW, CS_HREDRAW, CS_VREDRAW,
-    CW_USEDEFAULT, HDWP, SW_HIDE, SW_SHOW, WNDCLASSW, WS_EX_LAYERED, WS_EX_TOPMOST,
+    CreateWindowExW, DefWindowProcW, DeferWindowPos, RegisterClassW, CS_HREDRAW, CS_OWNDC, CS_VREDRAW,
+    CW_USEDEFAULT, HDWP, SW_HIDE, SW_SHOW, WNDCLASSW, WS_EX_LAYERED,
     WS_EX_TRANSPARENT, WS_POPUP, UpdateLayeredWindow, ULW_ALPHA, SWP_NOACTIVATE, SWP_NOZORDER,
 };
 use tiny_skia::{Color, Pixmap};
@@ -26,7 +26,7 @@ impl Overlay {
         let class_name = w!("WinGlideOverlay");
 
         let wnd_class = WNDCLASSW {
-            style: CS_HREDRAW | CS_VREDRAW,
+            style: CS_HREDRAW | CS_VREDRAW | CS_OWNDC,
             lpfnWndProc: Some(Self::wnd_proc),
             hInstance: instance.into(),
             lpszClassName: class_name,
@@ -39,7 +39,7 @@ impl Overlay {
 
         let hwnd = unsafe {
             CreateWindowExW(
-                WS_EX_LAYERED | WS_EX_TOPMOST | WS_EX_TRANSPARENT,
+                WS_EX_LAYERED | WS_EX_TRANSPARENT,
                 class_name,
                 w!("win-glide overlay"),
                 WS_POPUP,
@@ -55,6 +55,13 @@ impl Overlay {
         };
 
         Ok(Self { hwnd })
+    }
+
+    pub fn set_owner(&self, owner: HWND) {
+        use windows::Win32::UI::WindowsAndMessaging::{SetWindowLongPtrW, GWLP_HWNDPARENT};
+        unsafe {
+            SetWindowLongPtrW(self.hwnd, GWLP_HWNDPARENT, owner.0 as isize);
+        }
     }
 
     pub fn redraw(&self, rect: RECT) -> windows::core::Result<()> {
