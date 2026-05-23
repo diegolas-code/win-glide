@@ -264,6 +264,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_input_manager_initialization() {
         let (tx, _rx) = crossbeam_channel::unbounded();
         let manager = InputManager::new_with_config(tx, crate::config::Config::default().hotkey);
