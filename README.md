@@ -53,4 +53,4 @@ cargo test
 This project follows **Test-Driven Development (TDD)** and strict idiomatic Rust standards. CI is configured to run `fmt`, `clippy`, and `test` on every push.
 
 ## License
-[MIT](LICENSE) (Or specify your preferred license)
+[MIT](LICENSE)
