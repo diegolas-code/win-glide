@@ -1,6 +1,6 @@
 use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
 use windows::Win32::UI::Input::KeyboardAndMouse::{
-    RegisterHotKey, UnregisterHotKey, HOT_KEY_MODIFIERS, MOD_ALT, MOD_CONTROL,
+    RegisterHotKey, UnregisterHotKey, HOT_KEY_MODIFIERS,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     CallNextHookEx, DispatchMessageW, GetMessageW, SetWindowsHookExW, UnhookWindowsHookEx, HHOOK,
@@ -122,6 +122,8 @@ impl Drop for MouseHook {
     }
 }
 
+use crate::config::HotkeyConfig;
+
 pub struct InputManager {
     _hotkey: HotkeyManager,
     _kbd_hook: KeyboardHook,
@@ -129,11 +131,10 @@ pub struct InputManager {
 }
 
 impl InputManager {
-    pub fn new(sender: Sender<InputEvent>) -> windows::core::Result<Self> {
+    pub fn new_with_config(sender: Sender<InputEvent>, config: HotkeyConfig) -> windows::core::Result<Self> {
         let _ = set_event_sender(sender);
 
-        // Use ID 1337 to avoid common conflicts, though the keys might still conflict.
-        let hotkey = HotkeyManager::new(1337, MOD_CONTROL | MOD_ALT, 0x79)?;
+        let hotkey = HotkeyManager::new(1337, HOT_KEY_MODIFIERS(config.modifiers), config.vk)?;
         let kbd_hook = KeyboardHook::new(keyboard_proc)?;
         let mouse_hook = MouseHook::new(mouse_proc)?;
 
@@ -169,7 +170,7 @@ mod tests {
     }
 
     unsafe extern "system" fn test_hook_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
-        unsafe { CallNextHookEx(HHOOK::default(), code, wparam, lparam) }
+        unsafe { CallNextHookEx(None, code, wparam, lparam) }
     }
 
     #[test]
@@ -198,7 +199,7 @@ mod tests {
     #[test]
     fn test_input_manager_initialization() {
         let (tx, _rx) = crossbeam_channel::unbounded();
-        let manager = InputManager::new(tx);
+        let manager = InputManager::new_with_config(tx, crate::config::Config::default().hotkey);
         assert!(manager.is_ok(), "InputManager creation failed: {:?}", manager.err());
     }
 }

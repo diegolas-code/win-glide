@@ -38,6 +38,6 @@
 - [ ] Commit & Merge to main
 
 ## Phase 5: Configuration & Polish
-- [ ] Implement `serde` based JSON config loading
-- [ ] Add idle timeout and exit condition checks
+- [x] Implement `serde` based JSON config loading
+- [ ] Add idle timeout and exit condition checks [In Progress]
 - [ ] Finalize multi-monitor edge case handling

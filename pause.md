@@ -1,15 +1,20 @@
 # Project Pause: `win-glide`
 
 ## Current Status
-- **Phase:** Phase 4: UI / Visuals Complete. Moving to Phase 5: Configuration & Polish.
-- **Branch:** `feat/visual-overlay`
+- **Phase:** Phase 5: Configuration & Polish (In Progress).
+- **Branch:** `feat/config-system`
 - **Workflow:** TDD-driven, idiomatic Rust 2024.
 
 ## Last Actions
-- Implemented `Overlay` in `src/ui.rs` using a transparent Win32 layered window.
-- Integrated `tiny-skia` for 2D rendering of the 3px border.
-- Synced overlay position and visibility with the active window and physics loop.
-- Verified smooth movement of both the window and its border overlay.
+- Implemented `Config` system in `src/config.rs` using `serde`.
+- Updated `InputManager` and `App` to be fully configurable via `config.json`.
+- Integrated `Overlay` with `tiny-skia` rendering and smooth movement.
+- Verified that all components work together with the new configuration system.
+
+## Next Steps
+- Implement `serde` based JSON config loading.
+- Add idle timeout and exit condition checks (Escape key, focus loss).
+- Finalize multi-monitor edge case handling.
 
 ## Blocking Issues
 - None. Ready for implementation.

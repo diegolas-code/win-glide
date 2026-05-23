@@ -21,9 +21,9 @@ pub struct App {
 }
 
 impl App {
-    pub fn new(event_rx: Receiver<InputEvent>) -> Self {
+    pub fn new(event_rx: Receiver<InputEvent>, physics_config: PhysicsConfig) -> Self {
         Self {
-            physics: PhysicsState::new(PhysicsConfig::default()),
+            physics: PhysicsState::new(physics_config),
             event_rx,
             last_update: Instant::now(),
             active_window: None,

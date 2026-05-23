@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 #[derive(Debug, Default, Clone, Copy)]
 pub struct Vector2D {
     pub x: f32,
@@ -9,6 +11,7 @@ pub struct PhysicsState {
     pub config: PhysicsConfig,
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct PhysicsConfig {
     pub acceleration: f32,
     pub friction: f32,
