@@ -14,16 +14,18 @@ pub struct PhysicsState {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct PhysicsConfig {
     pub acceleration: f32,
-    pub friction: f32,
+    pub friction: f32,        // Coasting friction (quick stop)
+    pub thrust_friction: f32, // Friction while thrusting (allows reaching high speed)
     pub top_speed: f32,
 }
 
 impl Default for PhysicsConfig {
     fn default() -> Self {
         Self {
-            acceleration: 6000.0,  // pixels per second^2 (lower for longer spin-up)
-            friction: 10.0,        // velocity reduction factor
-            top_speed: 4000.0,     // pixels per second (higher peak speed)
+            acceleration: 4000.0,  // pixels per second^2
+            friction: 10.0,        // velocity reduction factor when coasting
+            thrust_friction: 0.5,  // low friction while keys are held
+            top_speed: 4000.0,     // pixels per second
         }
     }
 }
@@ -49,9 +51,15 @@ impl PhysicsState {
         }
     }
 
-    pub fn update(&mut self, dt: f32) {
+    pub fn update(&mut self, dt: f32, is_thrusting: bool) {
         // Apply friction
-        let friction_factor = (-self.config.friction * dt).exp();
+        let f = if is_thrusting {
+            self.config.thrust_friction
+        } else {
+            self.config.friction
+        };
+        
+        let friction_factor = (-f * dt).exp();
         self.velocity.x *= friction_factor;
         self.velocity.y *= friction_factor;
 
@@ -80,7 +88,7 @@ mod tests {
         let mut state = PhysicsState::new(config);
         state.velocity.x = 100.0;
         
-        state.update(0.1);
+        state.update(0.1, false);
         assert!(state.velocity.x < 100.0);
     }
 }

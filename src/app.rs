@@ -60,8 +60,8 @@ impl App {
             self.check_exit_conditions(now);
             
             if self.active_window.is_some() {
-                self.apply_thrust(dt);
-                self.update(dt);
+                let is_thrusting = self.apply_thrust(dt);
+                self.update(dt, is_thrusting);
                 self.apply_movement(dt);
             }
 
@@ -178,7 +178,7 @@ impl App {
         self.overlay.show(false);
     }
 
-    fn apply_thrust(&mut self, dt: f32) {
+    fn apply_thrust(&mut self, dt: f32) -> bool {
         let mut thrust = Vector2D::default();
         
         // Arrow keys: 0x25 (Left), 0x26 (Up), 0x27 (Right), 0x28 (Down)
@@ -194,11 +194,14 @@ impl App {
             thrust.y /= length;
             
             self.physics.apply_thrust(thrust, dt);
+            true
+        } else {
+            false
         }
     }
 
-    fn update(&mut self, dt: f32) {
-        self.physics.update(dt);
+    fn update(&mut self, dt: f32, is_thrusting: bool) {
+        self.physics.update(dt, is_thrusting);
     }
 
     fn apply_movement(&mut self, dt: f32) {

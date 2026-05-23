@@ -1,12 +1,12 @@
 # win-glide Pause State
 
-## Current Status: Physics Tuned (v0.1.8)
-The application now has a higher top speed and more weighted acceleration.
+## Current Status: Physics Refined (v0.1.9)
+The application now features a dual-friction physics model for better acceleration and speed.
 
 ### Completed Recently:
-- **Physics Tuning:** Increased top speed to 4,000 pixels/s and decreased acceleration to 6,000 pixels/s² for a more powerful feel and longer spin-up time.
-- **Graceful Shutdown:** Added a Windows console control handler to catch Ctrl+C.
-- **Asymmetry Fix:** Resolved issue where movement was faster left/up than right/down.
+- **Dual-Friction Model:** Implemented low friction during thrusting and high friction during coasting. This allows the window to reach the full 4,000 pixels/s top speed while still stopping quickly on release.
+- **Physics Tuning:** Set acceleration to 4,000 pixels/s² to provide a clear 1-second build-up to max speed.
+- **Graceful Shutdown:** Handled Ctrl+C via console control handler.
 
 ### Next Steps / Future Ideas:
 - **Visual Effects:** Add subtle pulsing or "fade-in" animation for the tint.

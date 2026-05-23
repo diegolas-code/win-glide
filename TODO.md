@@ -53,5 +53,6 @@
 - [x] Fix movement asymmetry: resolve positive direction lag caused by integer truncation
 - [x] Implement graceful shutdown: handle Ctrl+C via SetConsoleCtrlHandler
 - [x] Tune physics: increase top speed and decrease acceleration for better feel
+- [x] Implement dual-friction model: allow reaching top speed while maintaining quick stop
 - [x] Commit & Merge to main
 
