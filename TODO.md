@@ -57,5 +57,6 @@
 - [x] Refine physics: reduce acceleration for 1.33s spin-up time
 - [x] Remove monitor edge limits: allow free movement across virtual desktop
 - [x] Limit off-screen movement: ensure at least 150px of the window remains visible
+- [x] Fix overlay flicker and lag: implement DeferWindowPos for synchronized updates
 - [x] Commit & Merge to main
 

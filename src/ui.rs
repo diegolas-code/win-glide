@@ -5,9 +5,9 @@ use windows::Win32::Graphics::Gdi::{
     AC_SRC_OVER, BITMAPINFO, BITMAPINFOHEADER, BLENDFUNCTION, DIB_RGB_COLORS,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    CreateWindowExW, DefWindowProcW, RegisterClassW, CS_HREDRAW, CS_VREDRAW, CW_USEDEFAULT, SW_HIDE,
-    SW_SHOW, WNDCLASSW, WS_EX_LAYERED, WS_EX_TOPMOST, WS_EX_TRANSPARENT, WS_POPUP,
-    UpdateLayeredWindow, ULW_ALPHA,
+    CreateWindowExW, DefWindowProcW, DeferWindowPos, RegisterClassW, CS_HREDRAW, CS_VREDRAW,
+    CW_USEDEFAULT, HDWP, SW_HIDE, SW_SHOW, WNDCLASSW, WS_EX_LAYERED, WS_EX_TOPMOST,
+    WS_EX_TRANSPARENT, WS_POPUP, UpdateLayeredWindow, ULW_ALPHA, SWP_NOACTIVATE, SWP_NOZORDER,
 };
 use tiny_skia::{Color, Pixmap};
 
@@ -15,7 +15,7 @@ pub struct Overlay {
     pub hwnd: HWND,
 }
 
-const TOP_EXTENSION: i32 = 10;
+pub const OVERLAY_TOP_EXTENSION: i32 = 10;
 
 impl Overlay {
     unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
@@ -59,7 +59,7 @@ impl Overlay {
 
     pub fn redraw(&self, rect: RECT) -> windows::core::Result<()> {
         let width = rect.right - rect.left;
-        let height = (rect.bottom - rect.top) + TOP_EXTENSION;
+        let height = (rect.bottom - rect.top) + OVERLAY_TOP_EXTENSION;
 
         if width <= 0 || height <= 0 {
             return Ok(());
@@ -108,7 +108,7 @@ impl Overlay {
             let old_obj = SelectObject(mem_dc, bitmap);
 
             let pt_src = POINT { x: 0, y: 0 };
-            let pt_dst = POINT { x: rect.left, y: rect.top - TOP_EXTENSION };
+            let pt_dst = POINT { x: rect.left, y: rect.top - OVERLAY_TOP_EXTENSION };
             let size = SIZE { cx: width, cy: height };
 
             let blend = BLENDFUNCTION {
@@ -139,17 +139,18 @@ impl Overlay {
         Ok(())
     }
 
-    pub fn update_position(&self, rect: RECT) {
+    pub fn defer_update_position(&self, hdwp: HDWP, rect: RECT) -> windows::core::Result<HDWP> {
         unsafe {
-            let _ = windows::Win32::UI::WindowsAndMessaging::SetWindowPos(
+            DeferWindowPos(
+                hdwp,
                 self.hwnd,
                 HWND::default(),
                 rect.left,
-                rect.top - TOP_EXTENSION,
+                rect.top - OVERLAY_TOP_EXTENSION,
                 rect.right - rect.left,
-                (rect.bottom - rect.top) + TOP_EXTENSION,
-                windows::Win32::UI::WindowsAndMessaging::SWP_NOACTIVATE | windows::Win32::UI::WindowsAndMessaging::SWP_NOZORDER,
-            );
+                (rect.bottom - rect.top) + OVERLAY_TOP_EXTENSION,
+                SWP_NOACTIVATE | SWP_NOZORDER,
+            )
         }
     }
 

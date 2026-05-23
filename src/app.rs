@@ -8,7 +8,8 @@ use std::collections::HashSet;
 use std::time::{Duration, Instant};
 use windows::Win32::Foundation::{HWND, RECT};
 use windows::Win32::UI::WindowsAndMessaging::{
-    GetWindowRect, SetWindowPos, SWP_NOACTIVATE, SWP_NOSIZE, SWP_NOZORDER,
+    BeginDeferWindowPos, DeferWindowPos, EndDeferWindowPos, GetWindowRect, SWP_NOACTIVATE,
+    SWP_NOCOPYBITS, SWP_NOSIZE, SWP_NOZORDER,
 };
 
 pub struct App {
@@ -201,11 +202,11 @@ impl App {
         self.physics.update(dt, is_thrusting);
     }
 
-    fn apply_movement(&mut self, dt: f32) {
+    fn apply_movement(&mut self, _dt: f32) {
         if let Some(hwnd) = self.active_window {
             if self.physics.velocity.x.abs() > 0.1 || self.physics.velocity.y.abs() > 0.1 {
-                self.pos_x += self.physics.velocity.x * dt;
-                self.pos_y += self.physics.velocity.y * dt;
+                self.pos_x += self.physics.velocity.x * _dt;
+                self.pos_y += self.physics.velocity.y * _dt;
 
                 let mut new_rect = self.window_rect;
                 let width = new_rect.right - new_rect.left;
@@ -241,17 +242,31 @@ impl App {
                 self.window_rect = new_rect;
 
                 unsafe {
-                    let _ = SetWindowPos(
-                        hwnd,
-                        HWND::default(),
-                        new_rect.left,
-                        new_rect.top,
-                        0,
-                        0,
-                        SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOSIZE,
-                    );
+                    if let Ok(hdwp) = BeginDeferWindowPos(2) {
+                        let mut hdwp = hdwp;
+                        
+                        // Move target window
+                        if let Ok(h) = DeferWindowPos(
+                            hdwp,
+                            hwnd,
+                            HWND::default(),
+                            new_rect.left,
+                            new_rect.top,
+                            0,
+                            0,
+                            SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOSIZE | SWP_NOCOPYBITS,
+                        ) {
+                            hdwp = h;
+                        }
+
+                        // Move overlay
+                        if let Ok(h) = self.overlay.defer_update_position(hdwp, self.window_rect) {
+                            hdwp = h;
+                        }
+
+                        let _ = EndDeferWindowPos(hdwp);
+                    }
                 }
-                self.overlay.update_position(self.window_rect);
             }
         }
     }
