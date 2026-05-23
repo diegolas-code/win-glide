@@ -1,18 +1,30 @@
+//! Windows platform-specific utilities.
+//! 
+//! Provides helpers for DPI awareness, monitor enumeration, and 
+//! virtual desktop coordinate math.
+
 use windows::Win32::Foundation::{HWND, RECT};
 use windows::Win32::Graphics::Gdi::HMONITOR;
 
+/// Information about a physical or virtual monitor.
 pub struct Monitor {
     pub hmonitor: HMONITOR,
+    /// The usable area of the monitor (excluding taskbars).
     pub work_area: RECT,
 }
 
 pub struct Platform;
 
 impl Platform {
+    /// Returns the logical DPI for a specific window.
+    /// 
+    /// This is used to scale UI elements (like the overlay border)
+    /// correctly on high-DPI displays.
     pub fn get_dpi_for_window(hwnd: HWND) -> u32 {
         unsafe { windows::Win32::UI::HiDpi::GetDpiForWindow(hwnd) }
     }
 
+    /// Enumerates all currently active monitors.
     pub fn get_monitors() -> Vec<Monitor> {
         use windows::Win32::Foundation::LPARAM;
         use windows::Win32::Graphics::Gdi::{EnumDisplayMonitors, HDC};
@@ -20,6 +32,7 @@ impl Platform {
         let mut monitors = Vec::new();
 
         unsafe {
+            // EnumDisplayMonitors calls our callback for every monitor detected.
             let _ = EnumDisplayMonitors(
                 HDC::default(),
                 None,
@@ -31,6 +44,10 @@ impl Platform {
         monitors
     }
 
+    /// Returns the bounding box of the entire virtual desktop.
+    /// 
+    /// This spans all monitors and is used for boundary checking
+    /// during window movement.
     pub fn get_virtual_screen_rect() -> RECT {
         use windows::Win32::UI::WindowsAndMessaging::{
             GetSystemMetrics, SM_CXVIRTUALSCREEN, SM_CYVIRTUALSCREEN, SM_XVIRTUALSCREEN,
@@ -51,6 +68,7 @@ impl Platform {
     }
 }
 
+/// Callback for EnumDisplayMonitors.
 unsafe extern "system" fn enum_monitor_callback(
     hmonitor: HMONITOR,
     _: windows::Win32::Graphics::Gdi::HDC,

@@ -1,3 +1,10 @@
+//! UI and Rendering.
+//! 
+//! This module handles the visual overlay that indicates an active session.
+//! It uses a WS_EX_LAYERED window with per-pixel alpha transparency.
+//! Rendering is performed using `tiny-skia` into a GDI DIB section,
+//! which is then uploaded via `UpdateLayeredWindow`.
+
 use windows::core::w;
 use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, POINT, RECT, SIZE, WPARAM};
 use windows::Win32::Graphics::Gdi::{
@@ -11,16 +18,22 @@ use windows::Win32::UI::WindowsAndMessaging::{
 };
 use tiny_skia::{Color, Pixmap};
 
+/// Manages a transparent overlay window.
 pub struct Overlay {
     pub hwnd: HWND,
 }
 
+/// Constant for the vertical extension above the window (the "header").
 pub const OVERLAY_TOP_EXTENSION: i32 = 10;
 
 impl Overlay {
+    /// Internal window procedure for the overlay.
     unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
+        // The overlay is mostly passive and doesn't handle inputs directly.
         unsafe { DefWindowProcW(hwnd, msg, wparam, lparam) }
     }
+
+    /// Creates a new transparent, click-through overlay window.
     pub fn new() -> windows::core::Result<Self> {
         let instance = unsafe { windows::Win32::System::LibraryLoader::GetModuleHandleW(None)? };
         let class_name = w!("WinGlideOverlay");
@@ -37,6 +50,9 @@ impl Overlay {
             let _ = RegisterClassW(&wnd_class);
         }
 
+        // WS_EX_LAYERED: Enables per-pixel alpha via UpdateLayeredWindow.
+        // WS_EX_TRANSPARENT: Makes the window "click-through".
+        // WS_EX_NOACTIVATE: Prevents the window from stealing focus.
         let hwnd = unsafe {
             CreateWindowExW(
                 WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_NOACTIVATE,
@@ -57,6 +73,8 @@ impl Overlay {
         Ok(Self { hwnd })
     }
 
+    /// Sets the target window as the "owner" of the overlay.
+    /// This ensures the overlay stays on top of the target window.
     pub fn set_owner(&self, owner: HWND) {
         use windows::Win32::UI::WindowsAndMessaging::{SetWindowLongPtrW, GWLP_HWNDPARENT};
         unsafe {
@@ -64,6 +82,10 @@ impl Overlay {
         }
     }
 
+    /// Redraws the overlay based on the target window's dimensions.
+    /// 
+    /// This uses `tiny-skia` for high-quality 2D rendering and then
+    /// copies the result to a GDI bitmap for display.
     pub fn redraw(&self, rect: RECT) -> windows::core::Result<()> {
         let width = rect.right - rect.left;
         let height = (rect.bottom - rect.top) + OVERLAY_TOP_EXTENSION;
@@ -72,27 +94,26 @@ impl Overlay {
             return Ok(());
         }
 
+        // 1. Render using tiny-skia
         let mut pixmap = Pixmap::new(width as u32, height as u32).unwrap();
-        // Fill the entire pixmap with a semi-transparent tint
-        // Color: Win-glide blue (0, 120, 215) at ~20% opacity (alpha: 50)
+        // Fill with a semi-transparent blue tint.
         pixmap.fill(Color::from_rgba8(0, 120, 215, 50));
 
-        // Convert RGBA to BGRA for Win32
+        // 2. Convert tiny-skia RGBA to Win32 BGRA
         let mut bgra = pixmap.data().to_vec();
         for chunk in bgra.chunks_exact_mut(4) {
             chunk.swap(0, 2);
         }
 
+        // 3. Upload to GDI Layered Window
         unsafe {
             let screen_dc = windows::Win32::Graphics::Gdi::GetDC(None);
             if screen_dc.is_invalid() {
-                eprintln!("Overlay: Failed to get screen DC");
                 return Ok(());
             }
 
             let mem_dc = CreateCompatibleDC(screen_dc);
             if mem_dc.is_invalid() {
-                eprintln!("Overlay: Failed to create compatible DC");
                 windows::Win32::Graphics::Gdi::ReleaseDC(None, screen_dc);
                 return Ok(());
             }
@@ -101,7 +122,7 @@ impl Overlay {
                 bmiHeader: BITMAPINFOHEADER {
                     biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
                     biWidth: width,
-                    biHeight: -height, // top-down
+                    biHeight: -height, // Negative height means top-down bitmap
                     biPlanes: 1,
                     biBitCount: 32,
                     biCompression: 0, // BI_RGB
@@ -123,6 +144,7 @@ impl Overlay {
             match result {
                 Ok(bitmap) => {
                     if !bits.is_null() {
+                        // Copy pixels from tiny-skia buffer to the DIB section.
                         std::ptr::copy_nonoverlapping(bgra.as_ptr(), bits as *mut u8, bgra.len());
 
                         let old_obj = SelectObject(mem_dc, bitmap);
@@ -138,6 +160,7 @@ impl Overlay {
                             AlphaFormat: AC_SRC_ALPHA as u8,
                         };
 
+                        // Use UpdateLayeredWindow to apply the alpha-blended bitmap.
                         if let Err(e) = UpdateLayeredWindow(
                             self.hwnd,
                             screen_dc,
@@ -153,8 +176,6 @@ impl Overlay {
                         }
 
                         let _ = SelectObject(mem_dc, old_obj);
-                    } else {
-                        eprintln!("Overlay: CreateDIBSection succeeded but bits pointer is null");
                     }
                     let _ = DeleteObject(bitmap);
                 }
@@ -170,6 +191,9 @@ impl Overlay {
         Ok(())
     }
 
+    /// Queues a position update for the overlay.
+    /// 
+    /// Should be called within a BeginDeferWindowPos block for synchronization.
     pub fn defer_update_position(&self, hdwp: HDWP, rect: RECT) -> windows::core::Result<HDWP> {
         unsafe {
             DeferWindowPos(
@@ -185,6 +209,7 @@ impl Overlay {
         }
     }
 
+    /// Shows or hides the overlay.
     pub fn show(&self, visible: bool) {
         let cmd = if visible { SW_SHOW } else { SW_HIDE };
         unsafe {

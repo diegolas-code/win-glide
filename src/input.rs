@@ -1,3 +1,17 @@
+//! Low-level input handling.
+//! 
+//! This module manages Windows hooks (WH_KEYBOARD_LL, WH_MOUSE_LL) and 
+//! global hotkeys (RegisterHotKey).
+//! 
+//! Key design principles:
+//! 1. **Non-blocking Hooks**: LL hooks must return as fast as possible to avoid 
+//!    system-wide lag. We use a thread-safe channel to send events to the main thread.
+//! 2. **Input Interception**: When a session is active, we consume arrow key 
+//!    events so they don't reach the target window, but we ALWAYS allow 
+//!    modifiers and KeyUp events to prevent "stuck keys".
+//! 3. **Dedicated Thread**: Hooks require a Win32 message loop (GetMessage) to 
+//!    function, so they run on their own thread.
+
 use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
 use windows::Win32::UI::Input::KeyboardAndMouse::{
     RegisterHotKey, UnregisterHotKey, HOT_KEY_MODIFIERS,
@@ -10,12 +24,18 @@ use windows::Win32::UI::WindowsAndMessaging::{
     WM_SYSKEYUP, WM_XBUTTONDOWN,
 };
 
+/// Events sent from the input thread to the main application loop.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InputEvent {
+    /// The global activation hotkey was pressed.
     HotkeyTriggered(i32),
+    /// A key was pressed.
     KeyDown(u32),
+    /// A key was released.
     KeyUp(u32),
+    /// A mouse button was clicked.
     MouseButtonDown,
+    /// System shutdown or Ctrl+C signal.
     Shutdown,
 }
 
@@ -24,7 +44,10 @@ use std::sync::OnceLock;
 use crossbeam_channel::Sender;
 use windows::Win32::System::Console::{SetConsoleCtrlHandler, CTRL_C_EVENT};
 
+/// Global sender for events. Initialized once at startup.
 static EVENT_SENDER: OnceLock<Sender<InputEvent>> = OnceLock::new();
+
+/// Atomic flag used by hooks to know if they should intercept input.
 static IS_SESSION_ACTIVE: AtomicBool = AtomicBool::new(false);
 
 pub fn set_event_sender(sender: Sender<InputEvent>) {
@@ -33,6 +56,7 @@ pub fn set_event_sender(sender: Sender<InputEvent>) {
     }
 }
 
+/// Registers a handler for console signals like Ctrl+C.
 pub fn register_shutdown_handler() -> windows::core::Result<()> {
     unsafe {
         SetConsoleCtrlHandler(Some(console_ctrl_handler), true)?;
@@ -40,11 +64,12 @@ pub fn register_shutdown_handler() -> windows::core::Result<()> {
     Ok(())
 }
 
+/// Native callback for console control events.
 unsafe extern "system" fn console_ctrl_handler(ctrl_type: u32) -> windows::Win32::Foundation::BOOL {
     if ctrl_type == CTRL_C_EVENT {
         println!("\nShutdown signal received (Ctrl+C)");
         emit_event(InputEvent::Shutdown);
-        return windows::Win32::Foundation::BOOL(1); // Handle the event
+        return windows::Win32::Foundation::BOOL(1); 
     }
     windows::Win32::Foundation::BOOL(0)
 }
@@ -61,10 +86,15 @@ fn emit_event(event: InputEvent) {
     }
 }
 
+/// Returns true if the VK code corresponds to a modifier key (Shift, Ctrl, Alt, Win).
 fn is_modifier(vk_code: u32) -> bool {
     matches!(vk_code, 0x10..=0x12 | 0x5B..=0x5C | 0xA0..=0xA5)
 }
 
+/// Low-level keyboard hook callback.
+/// 
+/// Intercepts keys system-wide. When a glide session is active, it blocks
+/// arrow keys from reaching the target window while reporting them to the app.
 unsafe extern "system" fn keyboard_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     if code >= 0 {
         let is_active = IS_SESSION_ACTIVE.load(Ordering::Relaxed);
@@ -85,20 +115,25 @@ unsafe extern "system" fn keyboard_proc(code: i32, wparam: WPARAM, lparam: LPARA
                 _ => return unsafe { CallNextHookEx(None, code, wparam, lparam) },
             };
 
-            // DO NOT block modifier keys or KeyUp events to avoid "stuck" state.
-            // Stuck modifiers are especially bad as they change the meaning of subsequent keys
-            // (e.g., stuck Ctrl makes Esc behave like the Windows key).
+            // CRITICAL SAFETY RULE: 
+            // Do NOT block modifier keys or KeyUp events.
+            // Blocking these causes "stuck keys" where the OS thinks a key is still 
+            // down because it never saw the release event. This breaks the desktop.
             if is_modifier(vk_code) || !is_key_down {
                 return unsafe { CallNextHookEx(None, code, wparam, lparam) };
             }
 
-            // Consume the input so it doesn't reach the target window
+            // Consume the input so it doesn't reach the target window.
+            // Returning LRESULT(1) tells Windows we handled the event.
             return LRESULT(1);
         }
     }
     unsafe { CallNextHookEx(None, code, wparam, lparam) }
 }
 
+/// Low-level mouse hook callback.
+/// 
+/// Used to detect mouse clicks to automatically deactivate the session.
 unsafe extern "system" fn mouse_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     if code >= 0 && IS_SESSION_ACTIVE.load(Ordering::Relaxed) {
         let msg = wparam.0 as u32;
@@ -113,6 +148,7 @@ unsafe extern "system" fn mouse_proc(code: i32, wparam: WPARAM, lparam: LPARAM) 
     unsafe { CallNextHookEx(None, code, wparam, lparam) }
 }
 
+/// RAII wrapper for RegisterHotKey.
 pub struct HotkeyManager {
     id: i32,
 }
@@ -134,6 +170,7 @@ impl Drop for HotkeyManager {
     }
 }
 
+/// RAII wrapper for SetWindowsHookExW (WH_KEYBOARD_LL).
 pub struct KeyboardHook {
     hhook: HHOOK,
 }
@@ -155,6 +192,7 @@ impl Drop for KeyboardHook {
     }
 }
 
+/// RAII wrapper for SetWindowsHookExW (WH_MOUSE_LL).
 pub struct MouseHook {
     hhook: HHOOK,
 }
@@ -178,6 +216,7 @@ impl Drop for MouseHook {
 
 use crate::config::HotkeyConfig;
 
+/// Orchestrates input threads and hooks.
 pub struct InputManager {
     _hotkey: HotkeyManager,
     _kbd_hook: KeyboardHook,
@@ -189,6 +228,7 @@ unsafe impl Send for InputManager {}
 unsafe impl Sync for InputManager {}
 
 impl InputManager {
+    /// Initializes all hooks and hotkeys based on the provided configuration.
     pub fn new_with_config(sender: Sender<InputEvent>, config: HotkeyConfig) -> windows::core::Result<Self> {
         let _ = set_event_sender(sender);
 
@@ -205,6 +245,7 @@ impl InputManager {
         })
     }
 
+    /// Runs the Win32 message loop required for hooks to process events.
     pub fn run_loop(&self) {
         let mut msg = MSG::default();
         unsafe {
@@ -219,6 +260,7 @@ impl InputManager {
         println!("InputManager: Message loop exited.");
     }
 
+    /// Signals the message loop to exit.
     pub fn request_stop(&self) {
         unsafe {
             let _ = PostThreadMessageW(self.thread_id, WM_QUIT, WPARAM(0), LPARAM(0));

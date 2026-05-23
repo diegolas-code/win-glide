@@ -1,14 +1,14 @@
 # win-glide Pause State
 
-## Current Status: Refinement Complete (v0.1.11)
-Successfully implemented system stability and hygiene improvements. Ready to merge to main.
+## Current Status: Documentation & Refinement Complete (v0.1.12)
+Successfully added comprehensive explanatory comments to the entire codebase.
 
 ### Completed Recently:
+- **Code Documentation:** Added extensive comments to all source files (`app.rs`, `physics.rs`, `ui.rs`, `input.rs`, etc.) explaining the "what" and "why" behind technical decisions.
 - **Graceful Shutdown:** Implemented `WM_QUIT` signaling for the input thread to ensure clean hook unregistration.
 - **Test Hygiene:** Gated system-level tests with `#[ignore]` for CI stability.
 - **Error Handling:** Added explicit logging for silent failures in input and config modules.
 - **Defensive UI:** Added checks for GDI resource allocation in the overlay module.
-- **Documentation:** Added Developer Notes to `README.md`.
 
 ### Next Steps / Future Ideas:
 - **Visual Effects:** Add subtle pulsing or "fade-in" animation for the tint.
