@@ -8,8 +8,8 @@
 ## Last Actions
 - Created `dev` branch and `feat/hotkey-registration` feature branch.
 - Added `Win32_UI_Input_KeyboardAndMouse` feature to `Cargo.toml`.
-- Implemented `HotkeyManager` in `src/input.rs` with RAII support.
-- Verified hotkey registration with unit tests.
+- Implemented `HotkeyManager`, `KeyboardHook`, and `MouseHook` in `src/input.rs` with RAII support.
+- Verified all input registrations with unit tests.
 
 ## Next Steps
 - Implement `Ctrl + Shift + M` global hotkey.

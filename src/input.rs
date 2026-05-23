@@ -1,6 +1,9 @@
-use windows::Win32::Foundation::HWND;
+use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
 use windows::Win32::UI::Input::KeyboardAndMouse::{
     RegisterHotKey, UnregisterHotKey, HOT_KEY_MODIFIERS, MOD_ALT, MOD_CONTROL, MOD_SHIFT,
+};
+use windows::Win32::UI::WindowsAndMessaging::{
+    CallNextHookEx, SetWindowsHookExW, UnhookWindowsHookEx, HHOOK, WH_KEYBOARD_LL, WH_MOUSE_LL,
 };
 
 pub struct HotkeyManager {
@@ -24,6 +27,48 @@ impl Drop for HotkeyManager {
     }
 }
 
+pub struct KeyboardHook {
+    hhook: HHOOK,
+}
+
+impl KeyboardHook {
+    pub fn new(callback: unsafe extern "system" fn(i32, WPARAM, LPARAM) -> LRESULT) -> windows::core::Result<Self> {
+        let hhook = unsafe {
+            SetWindowsHookExW(WH_KEYBOARD_LL, Some(callback), None, 0)?
+        };
+        Ok(Self { hhook })
+    }
+}
+
+impl Drop for KeyboardHook {
+    fn drop(&mut self) {
+        unsafe {
+            let _ = UnhookWindowsHookEx(self.hhook);
+        }
+    }
+}
+
+pub struct MouseHook {
+    hhook: HHOOK,
+}
+
+impl MouseHook {
+    pub fn new(callback: unsafe extern "system" fn(i32, WPARAM, LPARAM) -> LRESULT) -> windows::core::Result<Self> {
+        let hhook = unsafe {
+            SetWindowsHookExW(WH_MOUSE_LL, Some(callback), None, 0)?
+        };
+        Ok(Self { hhook })
+    }
+}
+
+impl Drop for MouseHook {
+    fn drop(&mut self) {
+        unsafe {
+            let _ = UnhookWindowsHookEx(self.hhook);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -33,5 +78,21 @@ mod tests {
         // Use a less common hotkey for testing: Ctrl + Alt + K (0x4B)
         let res = HotkeyManager::new(999, MOD_CONTROL | MOD_SHIFT | MOD_ALT, 0x4B);
         assert!(res.is_ok(), "Hotkey registration failed: {:?}", res.err());
+    }
+
+    unsafe extern "system" fn test_hook_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
+        unsafe { CallNextHookEx(HHOOK::default(), code, wparam, lparam) }
+    }
+
+    #[test]
+    fn test_keyboard_hook_registration() {
+        let res = KeyboardHook::new(test_hook_proc);
+        assert!(res.is_ok(), "Keyboard hook registration failed: {:?}", res.err());
+    }
+
+    #[test]
+    fn test_mouse_hook_registration() {
+        let res = MouseHook::new(test_hook_proc);
+        assert!(res.is_ok(), "Mouse hook registration failed: {:?}", res.err());
     }
 }
