@@ -32,9 +32,10 @@
 - [x] Commit & Merge to main
 
 ## Phase 4: UI / Visuals
-- [ ] Create transparent layered window for the border
-- [ ] Implement `tiny-skia` rendering for the 3px border
-- [ ] Sync border position with the moving window
+- [x] Create transparent layered window for the border
+- [x] Implement `tiny-skia` rendering for the 3px border
+- [x] Sync border position with the moving window
+- [ ] Commit & Merge to main
 
 ## Phase 5: Configuration & Polish
 - [ ] Implement `serde` based JSON config loading

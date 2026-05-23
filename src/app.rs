@@ -8,6 +8,8 @@ use windows::Win32::UI::WindowsAndMessaging::{GetWindowRect, SetWindowPos, SWP_N
 
 use crate::platform::Platform;
 
+use crate::ui::Overlay;
+
 pub struct App {
     physics: PhysicsState,
     event_rx: Receiver<InputEvent>,
@@ -15,6 +17,7 @@ pub struct App {
     active_window: Option<HWND>,
     window_rect: RECT,
     dpi: u32,
+    overlay: Overlay,
 }
 
 impl App {
@@ -25,7 +28,8 @@ impl App {
             last_update: Instant::now(),
             active_window: None,
             window_rect: RECT::default(),
-            dpi: 96, // Default DPI
+            dpi: 96,
+            overlay: Overlay::new().expect("Failed to create Overlay"),
         }
     }
 
@@ -87,6 +91,10 @@ impl App {
                     self.physics.config.top_speed = 1500.0 * scale;
                     
                     self.physics.velocity = Vector2D::default();
+                    
+                    let _ = self.overlay.redraw(self.window_rect);
+                    self.overlay.show(true);
+                    
                     println!("Session activated for window: {:?} (DPI: {})", hwnd, self.dpi);
                 }
             }
@@ -96,6 +104,7 @@ impl App {
     fn deactivate_session(&mut self) {
         self.active_window = None;
         self.physics.velocity = Vector2D::default();
+        self.overlay.show(false);
         println!("Session deactivated");
     }
 
@@ -142,6 +151,8 @@ impl App {
                             SWP_NOACTIVATE | SWP_NOZORDER | windows::Win32::UI::WindowsAndMessaging::SWP_NOSIZE,
                         );
                     }
+                    
+                    self.overlay.update_position(self.window_rect);
                 }
             }
         }

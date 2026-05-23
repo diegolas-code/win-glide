@@ -1,21 +1,15 @@
 # Project Pause: `win-glide`
 
 ## Current Status
-- **Phase:** Phase 3: Physics & Movement Complete. Moving to Phase 4: UI / Visuals.
-- **Branch:** `feat/physics-engine`
+- **Phase:** Phase 4: UI / Visuals Complete. Moving to Phase 5: Configuration & Polish.
+- **Branch:** `feat/visual-overlay`
 - **Workflow:** TDD-driven, idiomatic Rust 2024.
 
 ## Last Actions
-- Implemented `PhysicsState` with acceleration and friction.
-- Implemented `App` with a ~120FPS main loop and event processing.
-- Integrated `SetWindowPos` for real-time window movement.
-- Implemented DPI normalization for movement speed.
-- Verified movement logic and session activation/deactivation.
-
-## Next Steps
-- Implement the Physics Loop (60Hz/120Hz timer).
-- Define Physics State (velocity, thrust, friction).
-- Integrate window movement logic with DPI awareness.
+- Implemented `Overlay` in `src/ui.rs` using a transparent Win32 layered window.
+- Integrated `tiny-skia` for 2D rendering of the 3px border.
+- Synced overlay position and visibility with the active window and physics loop.
+- Verified smooth movement of both the window and its border overlay.
 
 ## Blocking Issues
 - None. Ready for implementation.

@@ -3,6 +3,7 @@ mod platform;
 mod input;
 mod physics;
 mod app;
+mod ui;
 
 use crossbeam_channel::unbounded;
 use crate::input::{InputEvent, InputManager};

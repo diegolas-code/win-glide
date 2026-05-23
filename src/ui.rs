@@ -1,0 +1,176 @@
+use windows::core::w;
+use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, POINT, RECT, SIZE, WPARAM};
+use windows::Win32::Graphics::Gdi::{
+    CreateCompatibleDC, CreateDIBSection, DeleteDC, DeleteObject, SelectObject, AC_SRC_ALPHA,
+    AC_SRC_OVER, BITMAPINFO, BITMAPINFOHEADER, BLENDFUNCTION, DIB_RGB_COLORS,
+};
+use windows::Win32::UI::WindowsAndMessaging::{
+    CreateWindowExW, DefWindowProcW, RegisterClassW, CS_HREDRAW, CS_VREDRAW, CW_USEDEFAULT, SW_HIDE,
+    SW_SHOW, WNDCLASSW, WS_EX_LAYERED, WS_EX_TOPMOST, WS_EX_TRANSPARENT, WS_POPUP,
+    UpdateLayeredWindow, ULW_ALPHA,
+};
+use tiny_skia::{Color, Paint, PathBuilder, Pixmap, Stroke};
+
+pub struct Overlay {
+    pub hwnd: HWND,
+}
+
+impl Overlay {
+    unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
+        unsafe { DefWindowProcW(hwnd, msg, wparam, lparam) }
+    }
+    pub fn new() -> windows::core::Result<Self> {
+        let instance = unsafe { windows::Win32::System::LibraryLoader::GetModuleHandleW(None)? };
+        let class_name = w!("WinGlideOverlay");
+
+        let wnd_class = WNDCLASSW {
+            style: CS_HREDRAW | CS_VREDRAW,
+            lpfnWndProc: Some(Self::wnd_proc),
+            hInstance: instance.into(),
+            lpszClassName: class_name,
+            ..Default::default()
+        };
+
+        unsafe {
+            let _ = RegisterClassW(&wnd_class);
+        }
+
+        let hwnd = unsafe {
+            CreateWindowExW(
+                WS_EX_LAYERED | WS_EX_TOPMOST | WS_EX_TRANSPARENT,
+                class_name,
+                w!("win-glide overlay"),
+                WS_POPUP,
+                CW_USEDEFAULT,
+                CW_USEDEFAULT,
+                CW_USEDEFAULT,
+                CW_USEDEFAULT,
+                None,
+                None,
+                instance,
+                None,
+            )?
+        };
+
+        Ok(Self { hwnd })
+    }
+
+    pub fn redraw(&self, rect: RECT) -> windows::core::Result<()> {
+        let width = rect.right - rect.left;
+        let height = rect.bottom - rect.top;
+
+        if width <= 0 || height <= 0 {
+            return Ok(());
+        }
+
+        let mut pixmap = Pixmap::new(width as u32, height as u32).unwrap();
+        pixmap.fill(Color::TRANSPARENT);
+
+        let mut paint = Paint::default();
+        paint.set_color_rgba8(0, 120, 215, 255); // A nice blue
+        paint.anti_alias = true;
+
+        let stroke = Stroke {
+            width: 3.0,
+            ..Default::default()
+        };
+
+        let path = PathBuilder::from_rect(tiny_skia::Rect::from_ltrb(
+            1.5,
+            1.5,
+            width as f32 - 1.5,
+            height as f32 - 1.5,
+        ).unwrap());
+
+        pixmap.stroke_path(&path, &paint, &stroke, tiny_skia::Transform::identity(), None);
+
+        // Convert RGBA to BGRA for Win32
+        let mut bgra = pixmap.data().to_vec();
+        for chunk in bgra.chunks_exact_mut(4) {
+            chunk.swap(0, 2);
+        }
+
+        unsafe {
+            let screen_dc = windows::Win32::Graphics::Gdi::GetDC(None);
+            let mem_dc = CreateCompatibleDC(screen_dc);
+
+            let bmi = BITMAPINFO {
+                bmiHeader: BITMAPINFOHEADER {
+                    biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
+                    biWidth: width,
+                    biHeight: -height, // top-down
+                    biPlanes: 1,
+                    biBitCount: 32,
+                    biCompression: 0, // BI_RGB
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+
+            let mut bits = std::ptr::null_mut();
+            let bitmap = CreateDIBSection(
+                mem_dc,
+                &bmi,
+                DIB_RGB_COLORS,
+                &mut bits,
+                None,
+                0,
+            )?;
+
+            std::ptr::copy_nonoverlapping(bgra.as_ptr(), bits as *mut u8, bgra.len());
+
+            let old_obj = SelectObject(mem_dc, bitmap);
+
+            let pt_src = POINT { x: 0, y: 0 };
+            let pt_dst = POINT { x: rect.left, y: rect.top };
+            let size = SIZE { cx: width, cy: height };
+
+            let blend = BLENDFUNCTION {
+                BlendOp: AC_SRC_OVER as u8,
+                BlendFlags: 0,
+                SourceConstantAlpha: 255,
+                AlphaFormat: AC_SRC_ALPHA as u8,
+            };
+
+            UpdateLayeredWindow(
+                self.hwnd,
+                screen_dc,
+                Some(&pt_dst),
+                Some(&size),
+                mem_dc,
+                Some(&pt_src),
+                None,
+                Some(&blend),
+                ULW_ALPHA,
+            )?;
+
+            let _ = SelectObject(mem_dc, old_obj);
+            let _ = DeleteObject(bitmap);
+            let _ = DeleteDC(mem_dc);
+            windows::Win32::Graphics::Gdi::ReleaseDC(None, screen_dc);
+        }
+
+        Ok(())
+    }
+
+    pub fn update_position(&self, rect: RECT) {
+        unsafe {
+            let _ = windows::Win32::UI::WindowsAndMessaging::SetWindowPos(
+                self.hwnd,
+                HWND::default(),
+                rect.left,
+                rect.top,
+                rect.right - rect.left,
+                rect.bottom - rect.top,
+                windows::Win32::UI::WindowsAndMessaging::SWP_NOACTIVATE | windows::Win32::UI::WindowsAndMessaging::SWP_NOZORDER,
+            );
+        }
+    }
+
+    pub fn show(&self, visible: bool) {
+        let cmd = if visible { SW_SHOW } else { SW_HIDE };
+        unsafe {
+            let _ = windows::Win32::UI::WindowsAndMessaging::ShowWindow(self.hwnd, cmd);
+        }
+    }
+}
