@@ -59,5 +59,6 @@
 - [x] Limit off-screen movement: ensure at least 150px of the window remains visible
 - [x] Fix overlay flicker and lag: implement DeferWindowPos and advanced flicker-reduction flags
 - [x] Prevent glide on maximized windows: add IsZoomed check before activation
+- [x] Implement exit on any key: any non-arrow key (except modifiers) stops the glide
 - [x] Commit & Merge to main
 

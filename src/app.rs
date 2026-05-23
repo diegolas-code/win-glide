@@ -117,10 +117,18 @@ impl App {
                 }
                 InputEvent::KeyDown(vk) => {
                     if self.active_window.is_some() {
-                        if vk == 0x1B { // ESC
-                            self.deactivate_session();
-                        } else {
-                            self.pressed_keys.insert(vk);
+                        match vk {
+                            0x25..=0x28 => { // Arrow keys: Left, Up, Right, Down
+                                self.pressed_keys.insert(vk);
+                            }
+                            0x10..=0x12 | 0x5B..=0x5C | 0xA0..=0xA5 => {
+                                // Ignore modifiers (Shift, Ctrl, Alt, Win) to avoid
+                                // immediate deactivation from hotkey release/repeat.
+                            }
+                            _ => {
+                                println!("App: Non-arrow key pressed (0x{:X}), deactivating", vk);
+                                self.deactivate_session();
+                            }
                         }
                     }
                 }

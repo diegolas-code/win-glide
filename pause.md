@@ -1,12 +1,12 @@
 # win-glide Pause State
 
-## Current Status: Physics Refined (v0.1.9)
-The application now features a dual-friction physics model for better acceleration and speed.
+## Current Status: UX Refined (v0.1.10)
+The application now provides more intuitive control with "any key to stop" and optimized window guards.
 
 ### Completed Recently:
+- **Exit on Any Key:** Any key press other than arrow keys (and modifiers) now immediately terminates the glide session.
 - **Maximized Window Constraint:** Added a check to prevent gliding functionality when the active window is maximized.
 - **Advanced Flicker Reduction:** Implemented dynamic window ownership and added aggressive suppression flags.
-- **Overlay Sync:** Switched to `DeferWindowPos` for atomic movement.
 
 ### Next Steps / Future Ideas:
 - **Visual Effects:** Add subtle pulsing or "fade-in" animation for the tint.
