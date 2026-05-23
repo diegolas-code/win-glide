@@ -6,12 +6,15 @@ use std::time::{Duration, Instant};
 use windows::Win32::Foundation::{HWND, RECT};
 use windows::Win32::UI::WindowsAndMessaging::{GetWindowRect, SetWindowPos, SWP_NOACTIVATE, SWP_NOZORDER};
 
+use crate::platform::Platform;
+
 pub struct App {
     physics: PhysicsState,
     event_rx: Receiver<InputEvent>,
     last_update: Instant,
     active_window: Option<HWND>,
     window_rect: RECT,
+    dpi: u32,
 }
 
 impl App {
@@ -22,6 +25,7 @@ impl App {
             last_update: Instant::now(),
             active_window: None,
             window_rect: RECT::default(),
+            dpi: 96, // Default DPI
         }
     }
 
@@ -75,8 +79,15 @@ impl App {
                 if GetWindowRect(hwnd, &mut rect).is_ok() {
                     self.active_window = Some(hwnd);
                     self.window_rect = rect;
+                    self.dpi = Platform::get_dpi_for_window(hwnd);
+                    
+                    // Scale physics config based on DPI (96 is standard)
+                    let scale = self.dpi as f32 / 96.0;
+                    self.physics.config.acceleration = 2000.0 * scale;
+                    self.physics.config.top_speed = 1500.0 * scale;
+                    
                     self.physics.velocity = Vector2D::default();
-                    println!("Session activated for window: {:?}", hwnd);
+                    println!("Session activated for window: {:?} (DPI: {})", hwnd, self.dpi);
                 }
             }
         }
