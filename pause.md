@@ -9,6 +9,7 @@
 - Completed all 5 implementation phases.
 - Implemented core physics engine, global input hooks, and visual overlay.
 - Added JSON configuration support and multi-monitor boundary handling.
+- Updated `README.md` with comprehensive usage, build, and configuration instructions.
 - Verified system-wide behavior through integration and unit tests.
 
 ## Next Steps
