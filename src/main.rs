@@ -27,7 +27,7 @@ fn main() -> windows::core::Result<()> {
 
     let mut app = App::new(rx, config.physics);
     println!("win-glide is running. Press Ctrl+Alt+F10 (or your configured hotkey) to start.");
-    println!("Press Ctrl+C to exit gracefully.");
+    println!("Press Ctrl+C to exit.");
     app.run();
 
     Ok(())
