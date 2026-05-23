@@ -20,6 +20,8 @@ pub struct App {
     last_input: Instant,
     active_window: Option<HWND>,
     window_rect: RECT,
+    pos_x: f32,
+    pos_y: f32,
     dpi: u32,
     overlay: Overlay,
 }
@@ -33,6 +35,8 @@ impl App {
             last_input: Instant::now(),
             active_window: None,
             window_rect: RECT::default(),
+            pos_x: 0.0,
+            pos_y: 0.0,
             dpi: 96,
             overlay: Overlay::new().expect("Failed to create Overlay"),
         }
@@ -46,7 +50,8 @@ impl App {
             let dt = now.duration_since(self.last_update).as_secs_f32();
             self.last_update = now;
 
-            self.process_events();
+            self.pump_messages();
+            self.process_events(dt);
             self.check_exit_conditions(now);
             self.update(dt);
             self.apply_movement(dt);
@@ -54,6 +59,20 @@ impl App {
             let elapsed = now.elapsed();
             if elapsed < frame_duration {
                 std::thread::sleep(frame_duration - elapsed);
+            }
+        }
+    }
+
+    fn pump_messages(&mut self) {
+        use windows::Win32::UI::WindowsAndMessaging::{
+            DispatchMessageW, PeekMessageW, TranslateMessage, MSG, PM_REMOVE,
+        };
+
+        let mut msg = MSG::default();
+        unsafe {
+            while PeekMessageW(&mut msg, HWND::default(), 0, 0, PM_REMOVE).as_bool() {
+                let _ = TranslateMessage(&msg);
+                let _ = DispatchMessageW(&msg);
             }
         }
     }
@@ -78,16 +97,18 @@ impl App {
         }
     }
 
-    fn process_events(&mut self) {
+    fn process_events(&mut self, dt: f32) {
         while let Ok(event) = self.event_rx.try_recv() {
             self.last_input = Instant::now();
             match event {
-                InputEvent::HotkeyTriggered(_) => {
+                InputEvent::HotkeyTriggered(id) => {
+                    println!("Hotkey triggered (ID: {})", id);
                     self.activate_session();
                 }
                 InputEvent::KeyDown(vk) => {
                     if self.active_window.is_some() {
-                        if !self.handle_key_down(vk) {
+                        println!("Key down: 0x{:X}", vk);
+                        if !self.handle_key_down(vk, dt) {
                             self.deactivate_session();
                         }
                     }
@@ -110,22 +131,16 @@ impl App {
                 if GetWindowRect(hwnd, &mut rect).is_ok() {
                     self.active_window = Some(hwnd);
                     self.window_rect = rect;
+                    self.pos_x = rect.left as f32;
+                    self.pos_y = rect.top as f32;
                     self.dpi = Platform::get_dpi_for_window(hwnd);
 
-                    // Scale physics config based on DPI (96 is standard)
-                    let scale = self.dpi as f32 / 96.0;
-                    self.physics.config.acceleration = 2000.0 * scale;
-                    self.physics.config.top_speed = 1500.0 * scale;
-
-                    self.physics.velocity = Vector2D::default();
+                    // Note: We should probably keep the base config and apply scaling to a runtime state
+                    // For now, let's just log it.
+                    println!("Session activated for window: {:?} (DPI: {})", hwnd, self.dpi);
 
                     let _ = self.overlay.redraw(self.window_rect);
                     self.overlay.show(true);
-
-                    println!(
-                        "Session activated for window: {:?} (DPI: {})",
-                        hwnd, self.dpi
-                    );
                 }
             }
         }
@@ -138,7 +153,7 @@ impl App {
         println!("Session deactivated");
     }
 
-    fn handle_key_down(&mut self, vk: u32) -> bool {
+    fn handle_key_down(&mut self, vk: u32, dt: f32) -> bool {
         // Arrow keys: 0x25 (Left), 0x26 (Up), 0x27 (Right), 0x28 (Down)
         let thrust = match vk {
             0x25 => Vector2D { x: -1.0, y: 0.0 },
@@ -148,7 +163,7 @@ impl App {
             0x1B => return false, // ESC
             _ => return true,      // Ignore other keys for now
         };
-        self.physics.apply_thrust(thrust, 0.008);
+        self.physics.apply_thrust(thrust, dt);
         true
     }
 
@@ -160,35 +175,40 @@ impl App {
 
     fn apply_movement(&mut self, dt: f32) {
         if let Some(hwnd) = self.active_window {
-            if self.physics.velocity.x.abs() > 0.0 || self.physics.velocity.y.abs() > 0.0 {
-                let dx = (self.physics.velocity.x * dt) as i32;
-                let dy = (self.physics.velocity.y * dt) as i32;
+            if self.physics.velocity.x.abs() > 0.1 || self.physics.velocity.y.abs() > 0.1 {
+                self.pos_x += self.physics.velocity.x * dt;
+                self.pos_y += self.physics.velocity.y * dt;
 
-                if dx != 0 || dy != 0 {
-                    let mut new_rect = self.window_rect;
-                    new_rect.left += dx;
-                    new_rect.right += dx;
-                    new_rect.top += dy;
-                    new_rect.bottom += dy;
+                let mut new_rect = self.window_rect;
+                let width = new_rect.right - new_rect.left;
+                let height = new_rect.bottom - new_rect.top;
 
-                    // Clamp to work area
-                    self.clamp_to_work_area(hwnd, &mut new_rect);
+                new_rect.left = self.pos_x as i32;
+                new_rect.top = self.pos_y as i32;
+                new_rect.right = new_rect.left + width;
+                new_rect.bottom = new_rect.top + height;
 
-                    if new_rect.left != self.window_rect.left || new_rect.top != self.window_rect.top {
-                        self.window_rect = new_rect;
-                        unsafe {
-                            let _ = SetWindowPos(
-                                hwnd,
-                                HWND::default(),
-                                self.window_rect.left,
-                                self.window_rect.top,
-                                0,
-                                0,
-                                SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOSIZE,
-                            );
-                        }
-                        self.overlay.update_position(self.window_rect);
+                // Clamp to work area
+                self.clamp_to_work_area(hwnd, &mut new_rect);
+
+                if new_rect.left != self.window_rect.left || new_rect.top != self.window_rect.top {
+                    // Update our internal floats to match clamped ints if clamping happened
+                    self.pos_x = new_rect.left as f32;
+                    self.pos_y = new_rect.top as f32;
+                    self.window_rect = new_rect;
+
+                    unsafe {
+                        let _ = SetWindowPos(
+                            hwnd,
+                            HWND::default(),
+                            new_rect.left,
+                            new_rect.top,
+                            0,
+                            0,
+                            SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOSIZE,
+                        );
                     }
+                    self.overlay.update_position(self.window_rect);
                 }
             }
         }
