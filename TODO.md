@@ -35,10 +35,10 @@
 - [x] Create transparent layered window for the border
 - [x] Implement `tiny-skia` rendering for the 3px border
 - [x] Sync border position with the moving window
-- [ ] Commit & Merge to main
+- [x] Commit & Merge to main
 
 ## Phase 5: Configuration & Polish
 - [x] Implement `serde` based JSON config loading
 - [x] Add idle timeout and exit condition checks
 - [x] Finalize multi-monitor edge case handling
-- [ ] Commit & Merge to main
+- [x] Commit & Merge to main
