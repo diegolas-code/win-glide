@@ -1,22 +1,20 @@
-# Project Pause: `win-glide`
+# win-glide Pause State
 
-## Current Status
-- **Phase:** Troubleshooting & Refinement (v0.1.1).
-- **Branch:** `fix/window-hang-and-movement`
-- **Workflow:** Systematic Debugging, TDD-driven.
+## Current Status: Phase 5 Complete (v0.1.2)
+The application is now fully functional with core features implemented and critical bugs resolved.
 
-## Last Actions
-- Identified root cause of window hang: main thread was not pumping Win32 messages for the overlay window.
-- Identified root cause of movement failure: `i32` truncation of sub-pixel movement.
-- Implemented `pump_messages` in `App::run`.
-- Refactored `App` to use `f32` for position accumulation (`pos_x`, `pos_y`).
-- Implemented keyboard input suppression using a global atomic flag in the `WH_KEYBOARD_LL` hook.
-- Added diagnostic logging for input events.
+### Completed Recently:
+- **Keyboard Hook Fix:** Resolved the "stuck modifier" bug by ensuring `KeyUp` and modifier events are never suppressed.
+- **Mouse Input:** Switched from movement tracking to click-to-deactivate. This provides a safer and more intuitive exit path for the user.
+- **Physics & Rendering:** Movement is smooth using `f32` precision, and the overlay remains responsive via the integrated message pump.
+- **Documentation:** Updated history logs and TODO list.
 
-## Next Steps
-- Merge `dev` into `master`.
-- Perform a final end-to-end manual verification on Windows.
-- Tag v0.1.0 release.
+### Next Steps / Future Ideas:
+- **Phase 6 (Potential):** Refine the overlay visuals (e.g., rounded corners, pulsing effect).
+- **Optimization:** Reduce CPU usage of the physics loop when idle.
+- **Packaging:** Create a release build and potentially a simple installer or "run on startup" option.
 
-## Blocking Issues
-- None. Ready for implementation.
+## System Context:
+- Operating System: Windows 10/11
+- Language: Rust 2024
+- Key Dependencies: `windows-rs`, `tiny-skia`, `crossbeam-channel`

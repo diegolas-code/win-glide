@@ -44,5 +44,7 @@
 - [x] Fix window hang (message pump) and movement (f32 accumulation)
 - [x] Suppress keyboard input to target window during active session
 - [x] Finalize project README.md with usage and config info
+- [x] Fix keyboard interference (stuck modifiers) by allowing KeyUp/Modifiers
+- [x] Replace mouse movement tracking with click-to-deactivate for safety
 - [x] Commit & Merge to main
 
