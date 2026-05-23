@@ -12,6 +12,7 @@
 - [x] Add unit tests for window handle acquisition
 - [x] Create `Platform` module for DPI and Monitor enumeration
 - [x] Add tests for DPI scaling calculations
+- [x] Set up GitHub Actions CI (fmt, clippy, test)
 - [x] Commit & Merge to main
 
 ## Phase 2: Input & Hooks

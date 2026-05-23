@@ -9,6 +9,8 @@
 - Implemented `Platform` module for DPI detection and Monitor enumeration.
 - Verified all Foundation logic with unit tests.
 - Configured `windows-rs` dependencies for Win32 UI and Graphics.
+- Set up GitHub Actions CI workflow for automated `fmt`, `clippy`, and `test`.
+- Initialized Git repository and committed Phase 1 progress.
 
 ## Next Steps
 - Implement `Ctrl + Shift + M` global hotkey.
