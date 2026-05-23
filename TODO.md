@@ -48,5 +48,7 @@
 - [x] Replace mouse movement tracking with click-to-deactivate for safety
 - [x] Refine overlay: replace 3px border with full-window solid tint
 - [x] Extend overlay: add 10px top extension "header"
+- [x] Improve movement: implement 120Hz continuous thrust and diagonal normalization
+- [x] Tune physics: align acceleration and top speed with "Snappy & Light" model
 - [x] Commit & Merge to main
 

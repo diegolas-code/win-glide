@@ -1,19 +1,18 @@
 # win-glide Pause State
 
-## Current Status: Overlay Refined (v0.1.4)
-The application visuals have been updated with a full-window tint and a 10px top extension.
+## Current Status: Movement Improved (v0.1.5)
+The application now features smooth 120Hz continuous movement and tuned physics.
 
 ### Completed Recently:
-- **Overlay Top Extension:** Extended the overlay by 10px above the window top to create a "header" effect.
-- **Overlay Refinement:** Replaced the 3px blue border with a 20% opacity solid blue tint covering the entire active window.
-- **Code Cleanup:** Removed unused rendering imports and simplified `src/ui.rs`.
-- **Keyboard Hook Fix:** Resolved the "stuck modifier" bug.
-- **Mouse Input:** Switched from movement tracking to click-to-deactivate.
+- **Continuous Thrust:** Implemented state-based key tracking to allow smooth 120Hz acceleration, bypassing OS repeat rates.
+- **Diagonal Normalization:** Fixed issue where diagonal movement was faster than cardinal movement.
+- **Physics Tuning:** Increased acceleration (10,000) and top speed (2,500) to match the "Snappy & Light" spec.
+- **Overlay Refinement:** Added full-window blue tint and 10px top extension.
 
 ### Next Steps / Future Ideas:
-- **Phase 6 (Potential):** Add subtle pulsing or "fade-in" animation for the tint.
-- **Optimization:** Reduce CPU usage of the physics loop when idle.
-- **Packaging:** Create a release build and potentially a simple installer.
+- **Fluidity Polish:** Investigate potential jitter during boundary clamping or high-speed `SetWindowPos` calls.
+- **Visual Effects:** Add subtle pulsing or "fade-in" animation for the tint.
+- **Packaging:** Create a release build and simple installer.
 
 ## System Context:
 - Operating System: Windows 10/11
