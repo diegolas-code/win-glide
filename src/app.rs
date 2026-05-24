@@ -212,7 +212,10 @@ impl App {
 
                 let mut rect = RECT::default();
                 if GetWindowRect(hwnd, &mut rect).is_ok() {
-                    println!("App: Activating session for window: {:?}", hwnd);
+                    println!(
+                        "App: Activating session for window: {:?} at position: ({}, {})",
+                        hwnd, rect.left, rect.top
+                    );
                     self.active_window = Some(hwnd);
                     self.window_rect = rect;
                     // Seed high-precision position with current window position.
@@ -237,7 +240,10 @@ impl App {
         if self.active_window.is_none() {
             return;
         }
-        println!("App: Deactivating session");
+        println!(
+            "App: Deactivating session (Final position: {}, {})",
+            self.window_rect.left, self.window_rect.top
+        );
         crate::input::set_session_active(false);
         self.active_window = None;
         self.physics.velocity = Vector2D::default();
