@@ -43,6 +43,8 @@ pub struct App {
     dpi: u32,
     /// The visual overlay (tinted window).
     overlay: Overlay,
+    /// The last rect sent to DeferWindowPos (used to skip redundant updates).
+    last_sent_rect: RECT,
     /// Set of keys currently held down.
     pressed_keys: HashSet<u32>,
     /// Flag to keep the main loop running.
@@ -67,6 +69,7 @@ impl App {
             pos_y: 0.0,
             dpi: 96,
             overlay: Overlay::new().expect("Failed to create Overlay"),
+            last_sent_rect: RECT::default(),
             pressed_keys: HashSet::new(),
             running: true,
         }
@@ -74,35 +77,49 @@ impl App {
 
     /// The main application loop.
     ///
-    /// Runs at ~120Hz to provide smooth, high-refresh-rate window movement.
+    /// When a session is active, it runs at ~120Hz for smooth movement.
+    /// When idle, it blocks on the event channel to minimize CPU usage.
     pub fn run(&mut self) {
         let frame_duration = Duration::from_millis(8);
 
         while self.running {
             let now = Instant::now();
-            let dt = now.duration_since(self.last_update).as_secs_f32();
-            self.last_update = now;
 
-            // Process internal Win32 messages (required for the overlay window).
-            self.pump_messages();
-
-            // Process events from the low-level input thread.
-            self.process_events();
-
-            // Handle automatic deactivation (timeout, focus loss).
-            self.check_exit_conditions(now);
-
-            // If a session is active, perform the physics and movement update.
             if self.active_window.is_some() {
-                let is_thrusting = self.apply_thrust(dt);
-                self.update(dt, is_thrusting);
-                self.apply_movement(dt);
-            }
+                // --- ACTIVE STATE (~120Hz) ---
+                let dt = now.duration_since(self.last_update).as_secs_f32();
+                self.last_update = now;
 
-            // Cap the frame rate.
-            let elapsed = now.elapsed();
-            if elapsed < frame_duration {
-                std::thread::sleep(frame_duration - elapsed);
+                // Process internal Win32 messages (required for the overlay window).
+                self.pump_messages();
+
+                // Process events from the low-level input thread.
+                self.process_events();
+
+                // Handle automatic deactivation (timeout, focus loss).
+                self.check_exit_conditions(now);
+
+                // If a session is active, perform the physics and movement update.
+                if self.active_window.is_some() {
+                    let is_thrusting = self.apply_thrust(dt);
+                    self.update(dt, is_thrusting);
+                    self.apply_movement(dt);
+                }
+
+                // Cap the frame rate.
+                let elapsed = now.elapsed();
+                if elapsed < frame_duration {
+                    std::thread::sleep(frame_duration - elapsed);
+                }
+            } else {
+                // --- IDLE STATE (Sleep Mode) ---
+                // Block until an event (Hotkey, Shutdown) is received.
+                // This reduces CPU usage to 0% while win-glide is waiting for activation.
+                if let Ok(event) = self.event_rx.recv() {
+                    self.handle_single_event(event);
+                }
+                // Update last_update to avoid huge dt when waking up.
+                self.last_update = Instant::now();
             }
         }
 
@@ -150,51 +167,56 @@ impl App {
         }
     }
 
-    /// Translates raw input events into application state changes.
+    /// Processes all pending events from the low-level input thread.
     fn process_events(&mut self) {
         while let Ok(event) = self.event_rx.try_recv() {
-            self.last_input = Instant::now();
-            match event {
-                InputEvent::HotkeyTriggered(id) => {
-                    println!("Hotkey triggered (ID: {})", id);
-                    self.activate_session();
-                    // Force a message pump to ensure the window shows up immediately
-                    // without waiting for the next loop iteration.
-                    self.pump_messages();
-                }
-                InputEvent::KeyDown(vk) => {
-                    if self.active_window.is_some() {
-                        match vk {
-                            0x25..=0x28 => {
-                                // Arrow keys: Left, Up, Right, Down
-                                self.pressed_keys.insert(vk);
-                            }
-                            0x10..=0x12 | 0x5B..=0x5C | 0xA0..=0xA5 => {
-                                // Ignore modifiers (Shift, Ctrl, Alt, Win) to avoid
-                                // immediate deactivation from hotkey release/repeat.
-                            }
-                            _ => {
-                                // Any other key press acts as a "Stop" command.
-                                println!("App: Non-arrow key pressed (0x{:X}), deactivating", vk);
-                                self.deactivate_session();
-                            }
+            self.handle_single_event(event);
+        }
+    }
+
+    /// Handles a single input event and updates application state.
+    fn handle_single_event(&mut self, event: InputEvent) {
+        self.last_input = Instant::now();
+        match event {
+            InputEvent::HotkeyTriggered(id) => {
+                println!("Hotkey triggered (ID: {})", id);
+                self.activate_session();
+                // Force a message pump to ensure the window shows up immediately
+                // without waiting for the next loop iteration.
+                self.pump_messages();
+            }
+            InputEvent::KeyDown(vk) => {
+                if self.active_window.is_some() {
+                    match vk {
+                        0x25..=0x28 => {
+                            // Arrow keys: Left, Up, Right, Down
+                            self.pressed_keys.insert(vk);
+                        }
+                        0x10..=0x12 | 0x5B..=0x5C | 0xA0..=0xA5 => {
+                            // Ignore modifiers (Shift, Ctrl, Alt, Win) to avoid
+                            // immediate deactivation from hotkey release/repeat.
+                        }
+                        _ => {
+                            // Any other key press acts as a "Stop" command.
+                            println!("App: Non-arrow key pressed (0x{:X}), deactivating", vk);
+                            self.deactivate_session();
                         }
                     }
                 }
-                InputEvent::KeyUp(vk) => {
-                    self.pressed_keys.remove(&vk);
-                }
-                InputEvent::MouseButtonDown => {
-                    // Clicking deactivates for safety.
-                    println!("Mouse click detected, deactivating");
-                    self.deactivate_session();
-                }
-                InputEvent::Shutdown => {
-                    println!("App: Shutdown event received");
-                    self.deactivate_session();
-                    self.input_manager.request_stop();
-                    self.running = false;
-                }
+            }
+            InputEvent::KeyUp(vk) => {
+                self.pressed_keys.remove(&vk);
+            }
+            InputEvent::MouseButtonDown => {
+                // Clicking deactivates for safety.
+                println!("Mouse click detected, deactivating");
+                self.deactivate_session();
+            }
+            InputEvent::Shutdown => {
+                println!("App: Shutdown event received");
+                self.deactivate_session();
+                self.input_manager.request_stop();
+                self.running = false;
             }
         }
     }
@@ -240,6 +262,7 @@ impl App {
                     // Setup the overlay to "tint" the target window.
                     self.overlay.set_owner(hwnd);
                     let _ = self.overlay.redraw(self.window_rect);
+                    self.last_sent_rect = self.window_rect;
                     self.overlay.show(true);
                     // Force a message pump to ensure the window shows up immediately
                     // without waiting for the next loop iteration.
@@ -307,51 +330,44 @@ impl App {
     /// to prevent windows from being lost off-screen.
     fn apply_movement(&mut self, _dt: f32) {
         if let Some(hwnd) = self.active_window {
-            // Only perform updates if there is significant movement.
-            if self.physics.velocity.x.abs() > 0.1 || self.physics.velocity.y.abs() > 0.1 {
-                self.pos_x += self.physics.velocity.x * _dt;
-                self.pos_y += self.physics.velocity.y * _dt;
+            self.pos_x += self.physics.velocity.x * _dt;
+            self.pos_y += self.physics.velocity.y * _dt;
 
-                let mut new_rect = self.window_rect;
-                let width = new_rect.right - new_rect.left;
-                let height = new_rect.bottom - new_rect.top;
+            let mut new_rect = self.window_rect;
+            let width = new_rect.right - new_rect.left;
+            let height = new_rect.bottom - new_rect.top;
 
-                new_rect.left = self.pos_x.round() as i32;
-                new_rect.top = self.pos_y.round() as i32;
+            new_rect.left = self.pos_x.round() as i32;
+            new_rect.top = self.pos_y.round() as i32;
 
-                // --- Boundary Handling ---
-                // Limit off-screen movement: ensure at least 150px of the window
-                // remains visible on the virtual desktop.
-                let vs = Platform::get_virtual_screen_rect();
-                let min_visible = 150;
+            // --- Boundary Handling ---
+            let vs = Platform::get_virtual_screen_rect();
+            let min_visible = 150;
 
-                // Clamp horizontal position
-                if new_rect.left < vs.left - width + min_visible {
-                    new_rect.left = vs.left - width + min_visible;
-                } else if new_rect.left > vs.right - min_visible {
-                    new_rect.left = vs.right - min_visible;
-                }
+            if new_rect.left < vs.left - width + min_visible {
+                new_rect.left = vs.left - width + min_visible;
+            } else if new_rect.left > vs.right - min_visible {
+                new_rect.left = vs.right - min_visible;
+            }
 
-                // Clamp vertical position
-                if new_rect.top < vs.top - height + min_visible {
-                    new_rect.top = vs.top - height + min_visible;
-                } else if new_rect.top > vs.bottom - min_visible {
-                    new_rect.top = vs.bottom - min_visible;
-                }
+            if new_rect.top < vs.top - height + min_visible {
+                new_rect.top = vs.top - height + min_visible;
+            } else if new_rect.top > vs.bottom - min_visible {
+                new_rect.top = vs.bottom - min_visible;
+            }
 
-                new_rect.right = new_rect.left + width;
-                new_rect.bottom = new_rect.top + height;
+            new_rect.right = new_rect.left + width;
+            new_rect.bottom = new_rect.top + height;
 
-                // Sync internal floats with the clamped/rounded integer values
-                // to avoid "drift" between the simulation and actual window position.
-                self.pos_x = new_rect.left as f32;
-                self.pos_y = new_rect.top as f32;
-                self.window_rect = new_rect;
+            self.window_rect = new_rect;
 
+            // Optimization: Only call Win32 movement APIs if the integer position has actually changed.
+            if new_rect.left != self.last_sent_rect.left
+                || new_rect.top != self.last_sent_rect.top
+                || new_rect.right != self.last_sent_rect.right
+                || new_rect.bottom != self.last_sent_rect.bottom
+            {
                 unsafe {
-                    // Use BeginDeferWindowPos for atomic movement of multiple windows.
-                    // This reduces flickering and ensures the overlay and target window
-                    // move in the same screen refresh.
                     if let Ok(hdwp) = BeginDeferWindowPos(2) {
                         let mut hdwp = hdwp;
 
@@ -375,6 +391,7 @@ impl App {
                         }
 
                         let _ = EndDeferWindowPos(hdwp);
+                        self.last_sent_rect = new_rect;
                     }
                 }
             }

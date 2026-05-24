@@ -81,10 +81,10 @@
 ## Phase 8: Performance & Optimization
 - [x] Implement zero-copy rendering (render directly into GDI DIB bits)
 - [x] Restrict interaction with elevated windows (Task Manager) to avoid OS errors
-- [ ] Implement "sleep" mode for the physics loop when no keys are pressed
-- [ ] Optimize overlay redraws to only occur when window position actually changes
-- [ ] Profile and minimize GDI handle usage and memory allocations in the main loop
-- [ ] Commit & Merge to dev
+- [x] Implement "sleep" mode for the physics loop when no keys are pressed
+- [x] Optimize overlay redraws to only occur when window position actually changes
+- [x] Profile and minimize GDI handle usage and memory allocations in the main loop
+- [x] Commit & Merge to dev
 
 ## Phase 9: Productization (The Road to v1.0.0)
 - [ ] Create a release-optimized build profile
