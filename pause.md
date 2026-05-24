@@ -1,18 +1,19 @@
 # Current Status - win-glide
 
 ## Recent Achievements
-- **Phase 7: Visual Polish & UX (Refinements)**
-    - Reduced overlay "header" extension from 10px to 7px for a tighter fit.
-    - Implemented rounded corners (8px radius) for the blue tinted overlay using `tiny-skia` paths.
-- **Phase 8: Performance & Optimization**
-    - **Zero-Copy Rendering Pipeline:** Refactored the overlay rendering to use `tiny-skia`'s `PixmapMut::from_bytes`, eliminating a full-frame memory copy.
-    - **Instant Activation:** Optimized the hotkey trigger path by forcing an immediate Win32 message pump.
-    - **Elevated Window Protection:** Implemented a security check to detect and skip high-integrity windows (like Task Manager) if the app is not elevated. This prevents "Access Denied" errors and provides clear console feedback.
+- **Phase 7: Visual Polish & UX (Completed)**
+    - Finalized visual refinements: reduced overlay "header" extension to 7px and implemented 8px rounded corners.
+    - Decided against animation and pulsing effects to maintain an "instant" and "lightweight" feel.
+- **Phase 8: Performance & Optimization (In Progress)**
+    - **Zero-Copy Rendering Pipeline:** Refactored overlay rendering to draw directly into Win32 GDI memory, eliminating full-frame copies.
+    - **Instant Activation:** Optimized hotkey processing with immediate message pumping.
+    - **Elevated Window Safety:** Implemented checks to skip restricted high-integrity windows (like Task Manager) and provide user feedback.
 
 ## Immediate Next Steps
-- **Optimization:** Implement "Sleep Mode" for the physics loop to reduce CPU usage when stationary.
-- **Further Performance:** Optimize redraw logic to skip `UpdateLayeredWindow` if the window state hasn't changed.
+- **Phase 8 Continued:**
+    - Implement "Sleep Mode" for the physics loop to reduce CPU usage when stationary.
+    - Optimize redraw logic to further minimize GDI/DWM interaction.
 
 ## Technical Notes
-- `is_window_elevated` uses process token checking and handles `ERROR_ACCESS_DENIED` as a signal of a higher-integrity target.
-- UIPI (User Interface Privilege Isolation) is the primary driver for these restrictions.
+- The rendering pipeline is now at its theoretical minimum overhead for a layered alpha window.
+- Security boundaries (UIPI) are handled gracefully with proactive detection.
