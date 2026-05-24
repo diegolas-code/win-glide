@@ -12,7 +12,7 @@ use windows::Win32::Graphics::Gdi::{
     CreateDIBSection, DIB_RGB_COLORS, DeleteDC, DeleteObject, SelectObject,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    CS_HREDRAW, CS_OWNDC, CS_VREDRAW, CW_USEDEFAULT, CreateWindowExW, DefWindowProcW,
+    CW_USEDEFAULT, CreateWindowExW, DefWindowProcW,
     DeferWindowPos, HDWP, RegisterClassW, SW_HIDE, SW_SHOW, SWP_NOACTIVATE, SWP_NOZORDER,
     ULW_ALPHA, UpdateLayeredWindow, WNDCLASSW, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TRANSPARENT,
     WS_POPUP,
@@ -44,8 +44,9 @@ impl Overlay {
         let instance = unsafe { windows::Win32::System::LibraryLoader::GetModuleHandleW(None)? };
         let class_name = w!("WinGlideOverlay");
 
+        // Optimized Window Class: No CS_HREDRAW/VREDRAW or CS_OWNDC to minimize RAM.
         let wnd_class = WNDCLASSW {
-            style: CS_HREDRAW | CS_VREDRAW | CS_OWNDC,
+            style: windows::Win32::UI::WindowsAndMessaging::WNDCLASS_STYLES(0),
             lpfnWndProc: Some(Self::wnd_proc),
             hInstance: instance.into(),
             lpszClassName: class_name,
