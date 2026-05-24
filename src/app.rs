@@ -158,6 +158,9 @@ impl App {
                 InputEvent::HotkeyTriggered(id) => {
                     println!("Hotkey triggered (ID: {})", id);
                     self.activate_session();
+                    // Force a message pump to ensure the window shows up immediately
+                    // without waiting for the next loop iteration.
+                    self.pump_messages();
                 }
                 InputEvent::KeyDown(vk) => {
                     if self.active_window.is_some() {

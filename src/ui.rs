@@ -104,7 +104,12 @@ impl Overlay {
         let mut pixmap = Pixmap::new(width as u32, height as u32).unwrap();
 
         let mut paint = Paint::default();
-        paint.set_color(Color::from_rgba8(0, 120, 215, 50));
+        // Optimization: Use a pre-swapped color (B and R components exchanged)
+        // so that the resulting memory layout [B, G, R, A] is directly compatible
+        // with Win32's BGRA requirement. This avoids an expensive O(N) byte-swap
+        // loop over millions of pixels on high-resolution displays.
+        // Original: RGBA(0, 120, 215, 50) -> Pre-swapped: RGBA(215, 120, 0, 50)
+        paint.set_color(Color::from_rgba8(215, 120, 0, 50));
         paint.anti_alias = true;
 
         let mut pb = PathBuilder::new();
@@ -134,13 +139,7 @@ impl Overlay {
             );
         }
 
-        // 2. Convert tiny-skia RGBA to Win32 BGRA
-        let mut bgra = pixmap.data().to_vec();
-        for chunk in bgra.chunks_exact_mut(4) {
-            chunk.swap(0, 2);
-        }
-
-        // 3. Upload to GDI Layered Window
+        // 2. Upload to GDI Layered Window
         unsafe {
             let screen_dc = windows::Win32::Graphics::Gdi::GetDC(None);
             if screen_dc.is_invalid() {
@@ -173,7 +172,8 @@ impl Overlay {
                 Ok(bitmap) => {
                     if !bits.is_null() {
                         // Copy pixels from tiny-skia buffer to the DIB section.
-                        std::ptr::copy_nonoverlapping(bgra.as_ptr(), bits as *mut u8, bgra.len());
+                        // Note: The buffer is already in BGRA format due to our color-swap optimization.
+                        std::ptr::copy_nonoverlapping(pixmap.data().as_ptr(), bits as *mut u8, pixmap.data().len());
 
                         let old_obj = SelectObject(mem_dc, bitmap);
 
