@@ -74,6 +74,8 @@
 - [x] Commit & Merge to main
 
 ## Phase 7: Visual Polish & UX
+- [x] Reduce extra space above top window edge (10px -> 7px)
+- [x] Implement rounded corners (8px radius) for the overlay
 - [ ] Implement subtle "fade-in" animation for the overlay (0ms -> 200ms)
 - [ ] Add optional pulsing effect or border highlight during active movement
 - [ ] Implement smooth "fade-out" when deactivating

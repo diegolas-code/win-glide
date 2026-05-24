@@ -1,21 +1,15 @@
-# win-glide Pause State
+# Current Status - win-glide
 
-## Current Status: Documentation & Refinement Complete (v0.1.12)
-Successfully added comprehensive explanatory comments to the entire codebase.
+## Recent Achievements
+- **Phase 7: Visual Polish & UX (Refinements)**
+    - Reduced overlay "header" extension from 10px to 7px for a tighter fit.
+    - Implemented rounded corners (8px radius) for the blue tinted overlay using `tiny-skia` paths.
+    - Verified compilation and visual logic.
 
-### Completed Recently:
-- **Code Documentation:** Added extensive comments to all source files (`app.rs`, `physics.rs`, `ui.rs`, `input.rs`, etc.) explaining the "what" and "why" behind technical decisions.
-- **Graceful Shutdown:** Implemented `WM_QUIT` signaling for the input thread to ensure clean hook unregistration.
-- **Test Hygiene:** Gated system-level tests with `#[ignore]` for CI stability.
-- **Error Handling:** Added explicit logging for silent failures in input and config modules.
-- **Defensive UI:** Added checks for GDI resource allocation in the overlay module.
+## Immediate Next Steps
+- **User Review:** Confirm the new header height and corner rounding feel right.
+- **Further Visual Polish:** Continue with remaining tasks in Phase 7 (optional animations/effects) or proceed to Phase 8.
 
-### Next Steps / Future Ideas:
-- **Visual Effects:** Add subtle pulsing or "fade-in" animation for the tint.
-- **Optimization:** Ensure it uses near-zero resources when idle.
-- **Packaging:** Create a release build and simple installer.
-
-## System Context:
-- Operating System: Windows 10/11
-- Language: Rust 2024
-- Key Dependencies: `windows-rs`, `tiny-skia`, `crossbeam-channel`
+## Technical Notes
+- Rounded corners are achieved via `PathBuilder` quadratic beziers.
+- `OVERLAY_TOP_EXTENSION` constant controls the vertical offset.

@@ -5,7 +5,7 @@
 //! Rendering is performed using `tiny-skia` into a GDI DIB section,
 //! which is then uploaded via `UpdateLayeredWindow`.
 
-use tiny_skia::{Color, Pixmap};
+use tiny_skia::{Color, FillRule, Paint, PathBuilder, Pixmap, Transform};
 use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, POINT, RECT, SIZE, WPARAM};
 use windows::Win32::Graphics::Gdi::{
     AC_SRC_ALPHA, AC_SRC_OVER, BITMAPINFO, BITMAPINFOHEADER, BLENDFUNCTION, CreateCompatibleDC,
@@ -25,7 +25,7 @@ pub struct Overlay {
 }
 
 /// Constant for the vertical extension above the window (the "header").
-pub const OVERLAY_TOP_EXTENSION: i32 = 10;
+pub const OVERLAY_TOP_EXTENSION: i32 = 7;
 
 impl Overlay {
     /// Internal window procedure for the overlay.
@@ -102,8 +102,37 @@ impl Overlay {
 
         // 1. Render using tiny-skia
         let mut pixmap = Pixmap::new(width as u32, height as u32).unwrap();
-        // Fill with a semi-transparent blue tint.
-        pixmap.fill(Color::from_rgba8(0, 120, 215, 50));
+
+        let mut paint = Paint::default();
+        paint.set_color(Color::from_rgba8(0, 120, 215, 50));
+        paint.anti_alias = true;
+
+        let mut pb = PathBuilder::new();
+        let r = 8.0f32; // Corner radius
+        let w = width as f32;
+        let h = height as f32;
+
+        // Construct a rounded rectangle path
+        pb.move_to(r, 0.0);
+        pb.line_to(w - r, 0.0);
+        pb.quad_to(w, 0.0, w, r);
+        pb.line_to(w, h - r);
+        pb.quad_to(w, h, w - r, h);
+        pb.line_to(r, h);
+        pb.quad_to(0.0, h, 0.0, h - r);
+        pb.line_to(0.0, r);
+        pb.quad_to(0.0, 0.0, r, 0.0);
+        pb.close();
+
+        if let Some(path) = pb.finish() {
+            pixmap.fill_path(
+                &path,
+                &paint,
+                FillRule::Winding,
+                Transform::identity(),
+                None,
+            );
+        }
 
         // 2. Convert tiny-skia RGBA to Win32 BGRA
         let mut bgra = pixmap.data().to_vec();
