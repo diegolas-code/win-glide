@@ -70,6 +70,7 @@
 - [x] Update README.md with developer notes on testing and shutdown
 - [x] Add comprehensive explanatory comments to the entire codebase
 - [x] Resolve Clippy errors and dead code warnings to satisfy CI
+- [x] Implement window position logging on activation/deactivation
 - [x] Commit & Merge to main
 
 ## Phase 7: Visual Polish & UX
