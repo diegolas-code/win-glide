@@ -233,6 +233,9 @@ impl App {
                     self.overlay.set_owner(hwnd);
                     let _ = self.overlay.redraw(self.window_rect);
                     self.overlay.show(true);
+                    // Force a message pump to ensure the window shows up immediately
+                    // without waiting for the next loop iteration.
+                    self.pump_messages();
                 }
             }
         }

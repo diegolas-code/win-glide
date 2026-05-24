@@ -5,7 +5,7 @@
 //! Rendering is performed using `tiny-skia` into a GDI DIB section,
 //! which is then uploaded via `UpdateLayeredWindow`.
 
-use tiny_skia::{Color, FillRule, Paint, PathBuilder, Pixmap, Transform};
+use tiny_skia::{Color, FillRule, Paint, PathBuilder, PixmapMut, Transform};
 use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, POINT, RECT, SIZE, WPARAM};
 use windows::Win32::Graphics::Gdi::{
     AC_SRC_ALPHA, AC_SRC_OVER, BITMAPINFO, BITMAPINFOHEADER, BLENDFUNCTION, CreateCompatibleDC,
@@ -90,8 +90,8 @@ impl Overlay {
 
     /// Redraws the overlay based on the target window's dimensions.
     ///
-    /// This uses `tiny-skia` for high-quality 2D rendering and then
-    /// copies the result to a GDI bitmap for display.
+    /// This uses `tiny-skia` for high-quality 2D rendering directly into
+    /// a GDI DIB section to avoid unnecessary memory copies.
     pub fn redraw(&self, rect: RECT) -> windows::core::Result<()> {
         let width = rect.right - rect.left;
         let height = (rect.bottom - rect.top) + OVERLAY_TOP_EXTENSION;
@@ -100,46 +100,6 @@ impl Overlay {
             return Ok(());
         }
 
-        // 1. Render using tiny-skia
-        let mut pixmap = Pixmap::new(width as u32, height as u32).unwrap();
-
-        let mut paint = Paint::default();
-        // Optimization: Use a pre-swapped color (B and R components exchanged)
-        // so that the resulting memory layout [B, G, R, A] is directly compatible
-        // with Win32's BGRA requirement. This avoids an expensive O(N) byte-swap
-        // loop over millions of pixels on high-resolution displays.
-        // Original: RGBA(0, 120, 215, 50) -> Pre-swapped: RGBA(215, 120, 0, 50)
-        paint.set_color(Color::from_rgba8(215, 120, 0, 50));
-        paint.anti_alias = true;
-
-        let mut pb = PathBuilder::new();
-        let r = 8.0f32; // Corner radius
-        let w = width as f32;
-        let h = height as f32;
-
-        // Construct a rounded rectangle path
-        pb.move_to(r, 0.0);
-        pb.line_to(w - r, 0.0);
-        pb.quad_to(w, 0.0, w, r);
-        pb.line_to(w, h - r);
-        pb.quad_to(w, h, w - r, h);
-        pb.line_to(r, h);
-        pb.quad_to(0.0, h, 0.0, h - r);
-        pb.line_to(0.0, r);
-        pb.quad_to(0.0, 0.0, r, 0.0);
-        pb.close();
-
-        if let Some(path) = pb.finish() {
-            pixmap.fill_path(
-                &path,
-                &paint,
-                FillRule::Winding,
-                Transform::identity(),
-                None,
-            );
-        }
-
-        // 2. Upload to GDI Layered Window
         unsafe {
             let screen_dc = windows::Win32::Graphics::Gdi::GetDC(None);
             if screen_dc.is_invalid() {
@@ -171,10 +131,46 @@ impl Overlay {
             match result {
                 Ok(bitmap) => {
                     if !bits.is_null() {
-                        // Copy pixels from tiny-skia buffer to the DIB section.
-                        // Note: The buffer is already in BGRA format due to our color-swap optimization.
-                        std::ptr::copy_nonoverlapping(pixmap.data().as_ptr(), bits as *mut u8, pixmap.data().len());
+                        // 1. Wrap the DIB section's memory in a tiny-skia PixmapMut.
+                        // This allows rendering directly into GDI-managed memory, eliminating a copy.
+                        let slice = std::slice::from_raw_parts_mut(bits as *mut u8, (width * height * 4) as usize);
+                        if let Some(mut pixmap) = PixmapMut::from_bytes(slice, width as u32, height as u32) {
+                            // Clear with transparent (GDI memory might be uninitialized)
+                            pixmap.fill(Color::TRANSPARENT);
 
+                            let mut paint = Paint::default();
+                            // Optimization: Use pre-swapped color (BGRA) for direct compatibility.
+                            paint.set_color(Color::from_rgba8(215, 120, 0, 50));
+                            paint.anti_alias = true;
+
+                            let mut pb = PathBuilder::new();
+                            let r = 8.0f32; // Corner radius
+                            let w = width as f32;
+                            let h = height as f32;
+
+                            pb.move_to(r, 0.0);
+                            pb.line_to(w - r, 0.0);
+                            pb.quad_to(w, 0.0, w, r);
+                            pb.line_to(w, h - r);
+                            pb.quad_to(w, h, w - r, h);
+                            pb.line_to(r, h);
+                            pb.quad_to(0.0, h, 0.0, h - r);
+                            pb.line_to(0.0, r);
+                            pb.quad_to(0.0, 0.0, r, 0.0);
+                            pb.close();
+
+                            if let Some(path) = pb.finish() {
+                                pixmap.fill_path(
+                                    &path,
+                                    &paint,
+                                    FillRule::Winding,
+                                    Transform::identity(),
+                                    None,
+                                );
+                            }
+                        }
+
+                        // 2. Upload to GDI Layered Window
                         let old_obj = SelectObject(mem_dc, bitmap);
 
                         let pt_src = POINT { x: 0, y: 0 };
@@ -194,7 +190,6 @@ impl Overlay {
                             AlphaFormat: AC_SRC_ALPHA as u8,
                         };
 
-                        // Use UpdateLayeredWindow to apply the alpha-blended bitmap.
                         if let Err(e) = UpdateLayeredWindow(
                             self.hwnd,
                             screen_dc,
