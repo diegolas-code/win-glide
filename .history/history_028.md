@@ -1,32 +1,28 @@
-# History Log - 028: Completing Phase 8 - Deep Performance Optimizations
+# History Log - 028: Refining Phase 8 - Stability and API Optimization
 
 ## Context
-With the core functionality and visual refinements stable, Phase 8 focused on making `win-glide` as efficient and "silent" as possible on system resources.
+Following the implementation of a blocking "Sleep Mode," significant application instability was reported (window interaction blockage). This log documents the decision to revert Sleep Mode in favor of stable polling and safe API optimizations.
 
 ## Technical Decisions
 
-### 1. Idle Sleep Mode (Blocking on Events)
-Previously, the main loop ran at a constant ~120Hz, polling the event channel with `try_recv()`.
-- **Change:** When `active_window` is `None`, the loop now uses `event_rx.recv()`.
-- **Benefit:** This puts the application thread to sleep while idle. The OS scheduler won't wake it up until a hotkey or shutdown signal is sent by the input thread. CPU usage drops to 0% during idle.
+### 1. Reverting Sleep Mode
+The blocking `event_rx.recv()` logic was identified as the likely cause of OS-level timing issues and blocked message pumping, which prevented users from interacting with windows after a session ended.
+- **Decision:** Return to the stable 120Hz polling loop. The CPU usage is already negligible (~0.1%), making the risk of Sleep Mode unjustified.
 
 ### 2. API Churn Reduction (`last_sent_rect`)
-The physics loop updates at ~120Hz. Even with small velocities, the rounded integer position of the window might not change every frame.
-- **Change:** Added `last_sent_rect` to track the state of the last successful `DeferWindowPos` call.
-- **Benefit:** Skips expensive Win32 API calls (`BeginDeferWindowPos`, `DeferWindowPos` x2, `EndDeferWindowPos`) if the window hasn't actually moved to a new pixel.
+To further optimize the 120Hz loop without blocking, we implemented tracking of the last successfully processed window rectangle.
+- **Change:** Added `last_sent_rect` to the `App` struct.
+- **Benefit:** If the physics simulation's rounded integer coordinates haven't changed from the last frame, the entire `BeginDeferWindowPos` block is skipped. This significantly reduces GDI and DWM API calls during slow movement or stationary periods.
 
-### 3. Integrated Diagnostics & Safety
-The previous investigation into Task Manager compatibility was refined into a permanent safety feature.
-- **Elevation Check:** Added `is_window_elevated` check.
-- **Impact:** Prevents "Access Denied" errors when encountering high-integrity windows by proactively skipping them and informing the user.
+### 3. Stability Over Aggressive Optimization
+The project's priority was shifted to ensure that "Performance & Optimization" does not compromise the "Snappy" and "Reliable" core experience.
 
 ## Changes
 
 ### `src/app.rs`
-- Refactored `run()` to handle Active vs. Idle states.
-- Implemented `handle_single_event()` to centralize state transitions.
-- Added `last_sent_rect` tracking to `apply_movement()`.
-- Ensured `pump_messages` and `check_exit_conditions` are preserved.
+- Restored the stable polling loop.
+- Implemented `last_sent_rect` tracking and conditional movement logic.
+- Reset `last_sent_rect` in `activate_session` to guarantee immediate response.
 
 ## Impact
-`win-glide` is now optimized for long-term background operation. It consumes near-zero CPU when idle and minimizes OS API interaction during movement, all while maintaining its "instant" responsiveness.
+The application is restored to its high-stability state. It remains extremely efficient due to zero-copy rendering and reduced API churn, while ensuring zero interference with standard Windows interaction.

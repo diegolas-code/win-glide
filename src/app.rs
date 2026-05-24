@@ -77,49 +77,35 @@ impl App {
 
     /// The main application loop.
     ///
-    /// When a session is active, it runs at ~120Hz for smooth movement.
-    /// When idle, it blocks on the event channel to minimize CPU usage.
+    /// Runs at ~120Hz to provide smooth, high-refresh-rate window movement.
     pub fn run(&mut self) {
         let frame_duration = Duration::from_millis(8);
 
         while self.running {
             let now = Instant::now();
+            let dt = now.duration_since(self.last_update).as_secs_f32();
+            self.last_update = now;
 
+            // Process internal Win32 messages (required for the overlay window).
+            self.pump_messages();
+
+            // Process events from the low-level input thread.
+            self.process_events();
+
+            // Handle automatic deactivation (timeout, focus loss).
+            self.check_exit_conditions(now);
+
+            // If a session is active, perform the physics and movement update.
             if self.active_window.is_some() {
-                // --- ACTIVE STATE (~120Hz) ---
-                let dt = now.duration_since(self.last_update).as_secs_f32();
-                self.last_update = now;
+                let is_thrusting = self.apply_thrust(dt);
+                self.update(dt, is_thrusting);
+                self.apply_movement(dt);
+            }
 
-                // Process internal Win32 messages (required for the overlay window).
-                self.pump_messages();
-
-                // Process events from the low-level input thread.
-                self.process_events();
-
-                // Handle automatic deactivation (timeout, focus loss).
-                self.check_exit_conditions(now);
-
-                // If a session is active, perform the physics and movement update.
-                if self.active_window.is_some() {
-                    let is_thrusting = self.apply_thrust(dt);
-                    self.update(dt, is_thrusting);
-                    self.apply_movement(dt);
-                }
-
-                // Cap the frame rate.
-                let elapsed = now.elapsed();
-                if elapsed < frame_duration {
-                    std::thread::sleep(frame_duration - elapsed);
-                }
-            } else {
-                // --- IDLE STATE (Sleep Mode) ---
-                // Block until an event (Hotkey, Shutdown) is received.
-                // This reduces CPU usage to 0% while win-glide is waiting for activation.
-                if let Ok(event) = self.event_rx.recv() {
-                    self.handle_single_event(event);
-                }
-                // Update last_update to avoid huge dt when waking up.
-                self.last_update = Instant::now();
+            // Cap the frame rate.
+            let elapsed = now.elapsed();
+            if elapsed < frame_duration {
+                std::thread::sleep(frame_duration - elapsed);
             }
         }
 
@@ -167,56 +153,51 @@ impl App {
         }
     }
 
-    /// Processes all pending events from the low-level input thread.
+    /// Translates raw input events into application state changes.
     fn process_events(&mut self) {
         while let Ok(event) = self.event_rx.try_recv() {
-            self.handle_single_event(event);
-        }
-    }
-
-    /// Handles a single input event and updates application state.
-    fn handle_single_event(&mut self, event: InputEvent) {
-        self.last_input = Instant::now();
-        match event {
-            InputEvent::HotkeyTriggered(id) => {
-                println!("Hotkey triggered (ID: {})", id);
-                self.activate_session();
-                // Force a message pump to ensure the window shows up immediately
-                // without waiting for the next loop iteration.
-                self.pump_messages();
-            }
-            InputEvent::KeyDown(vk) => {
-                if self.active_window.is_some() {
-                    match vk {
-                        0x25..=0x28 => {
-                            // Arrow keys: Left, Up, Right, Down
-                            self.pressed_keys.insert(vk);
-                        }
-                        0x10..=0x12 | 0x5B..=0x5C | 0xA0..=0xA5 => {
-                            // Ignore modifiers (Shift, Ctrl, Alt, Win) to avoid
-                            // immediate deactivation from hotkey release/repeat.
-                        }
-                        _ => {
-                            // Any other key press acts as a "Stop" command.
-                            println!("App: Non-arrow key pressed (0x{:X}), deactivating", vk);
-                            self.deactivate_session();
+            self.last_input = Instant::now();
+            match event {
+                InputEvent::HotkeyTriggered(id) => {
+                    println!("Hotkey triggered (ID: {})", id);
+                    self.activate_session();
+                    // Force a message pump to ensure the window shows up immediately
+                    // without waiting for the next loop iteration.
+                    self.pump_messages();
+                }
+                InputEvent::KeyDown(vk) => {
+                    if self.active_window.is_some() {
+                        match vk {
+                            0x25..=0x28 => {
+                                // Arrow keys: Left, Up, Right, Down
+                                self.pressed_keys.insert(vk);
+                            }
+                            0x10..=0x12 | 0x5B..=0x5C | 0xA0..=0xA5 => {
+                                // Ignore modifiers (Shift, Ctrl, Alt, Win) to avoid
+                                // immediate deactivation from hotkey release/repeat.
+                            }
+                            _ => {
+                                // Any other key press acts as a "Stop" command.
+                                println!("App: Non-arrow key pressed (0x{:X}), deactivating", vk);
+                                self.deactivate_session();
+                            }
                         }
                     }
                 }
-            }
-            InputEvent::KeyUp(vk) => {
-                self.pressed_keys.remove(&vk);
-            }
-            InputEvent::MouseButtonDown => {
-                // Clicking deactivates for safety.
-                println!("Mouse click detected, deactivating");
-                self.deactivate_session();
-            }
-            InputEvent::Shutdown => {
-                println!("App: Shutdown event received");
-                self.deactivate_session();
-                self.input_manager.request_stop();
-                self.running = false;
+                InputEvent::KeyUp(vk) => {
+                    self.pressed_keys.remove(&vk);
+                }
+                InputEvent::MouseButtonDown => {
+                    // Clicking deactivates for safety.
+                    println!("Mouse click detected, deactivating");
+                    self.deactivate_session();
+                }
+                InputEvent::Shutdown => {
+                    println!("App: Shutdown event received");
+                    self.deactivate_session();
+                    self.input_manager.request_stop();
+                    self.running = false;
+                }
             }
         }
     }
