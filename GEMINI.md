@@ -8,6 +8,11 @@
 
 * Check the [TODO List](TODO.md) for the current implementation roadmap and task tracking.
 
+## Branch Management & Merging
+
+*   **Explicit Approval Required**: NEVER merge a feature, fix, or experimental branch into `master`, `main`, or `dev` without obtaining explicit permission from the user first.
+*   **Workflow**: Always implement features in a dedicated branch, verify them, and then ask the user if they are ready to merge.
+
 ## Documentation & History Workflow
 
 After every major commit or phase completion, you MUST:
