@@ -14,7 +14,7 @@
 - [x] Add tests for DPI scaling calculations
 - [x] Set up GitHub Actions CI (fmt, clippy, test)
 - [x] Create project README.md
-- [x] Commit & Merge to main
+- [x] Commit & Merge to dev
 
 ## Phase 2: Input & Hooks
 - [x] Implement global hotkey registration (`Ctrl + Alt + F10`)
@@ -22,20 +22,20 @@
 - [x] Implement `WH_MOUSE_LL` hook for delta tracking
 - [x] Add integration tests for input event processing
 - [x] Set up message queuing for thread-safe input processing
-- [x] Commit & Merge to main
+- [x] Commit & Merge to dev
 
 ## Phase 3: Physics & Movement
 - [x] Implement the Physics Loop (60Hz/120Hz timer)
 - [x] Define Physics State (velocity, thrust, friction)
 - [x] Integrate thrust, friction, and velocity calculations
 - [x] Implement `SetWindowPos` movement logic with DPI normalization
-- [x] Commit & Merge to main
+- [x] Commit & Merge to dev
 
 ## Phase 4: UI / Visuals
 - [x] Create transparent layered window for the border
 - [x] Implement `tiny-skia` rendering for the 3px border
 - [x] Sync border position with the moving window
-- [x] Commit & Merge to main
+- [x] Commit & Merge to dev
 
 ## Phase 5: Configuration & Polish
 - [x] Implement `serde` based JSON config loading
@@ -60,7 +60,7 @@
 - [x] Fix overlay flicker and lag: implement DeferWindowPos and advanced flicker-reduction flags
 - [x] Prevent glide on maximized windows: add IsZoomed check before activation
 - [x] Implement exit on any key: any non-arrow key (except modifiers) stops the glide
-- [x] Commit & Merge to main
+- [x] Commit & Merge to dev
 
 ## Phase 6: Refinement & Hygiene
 - [x] Implement graceful input-thread shutdown
@@ -71,7 +71,7 @@
 - [x] Add comprehensive explanatory comments to the entire codebase
 - [x] Resolve Clippy errors and dead code warnings to satisfy CI
 - [x] Implement window position logging on activation/deactivation
-- [x] Commit & Merge to main
+- [x] Commit & Merge to dev
 
 ## Phase 7: Visual Polish & UX
 - [x] Reduce extra space above top window edge (10px -> 7px)
@@ -80,7 +80,7 @@
 - [ ] Add optional pulsing effect or border highlight during active movement
 - [ ] Implement smooth "fade-out" when deactivating
 - [ ] Add configuration parameters for animation speeds
-- [ ] Commit & Merge to main
+- [ ] Commit & Merge to dev
 
 ## Phase 8: Performance & Optimization
 - [x] Implement zero-copy rendering (render directly into GDI DIB bits)
@@ -88,7 +88,7 @@
 - [ ] Implement "sleep" mode for the physics loop when no keys are pressed
 - [ ] Optimize overlay redraws to only occur when window position actually changes
 - [ ] Profile and minimize GDI handle usage and memory allocations in the main loop
-- [ ] Commit & Merge to main
+- [ ] Commit & Merge to dev
 
 ## Phase 9: Productization (The Road to v1.0.0)
 - [ ] Create a release-optimized build profile
@@ -96,5 +96,5 @@
 - [ ] Research and implement a simple installer (e.g., Inno Setup or a WiX-based MSI)
 - [ ] Final audit of the `config.json` schema for long-term stability
 - [ ] Finalize user documentation and version bump to v1.0.0
-- [ ] Commit & Merge to main
+- [ ] Commit & Merge to dev
 
