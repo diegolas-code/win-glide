@@ -206,6 +206,14 @@ impl App {
         }
         let hwnd = get_active_window();
         if !hwnd.is_invalid() {
+            // Security/Compatibility Check: Skip elevated windows if we are not elevated.
+            // UIPI (User Interface Privilege Isolation) prevents a lower-integrity
+            // process from interacting with higher-integrity windows.
+            if crate::window::is_window_elevated(hwnd) && !Platform::is_admin() {
+                println!("App: Cannot glide an elevated window (Access Denied). Run win-glide as Administrator to enable this.");
+                return;
+            }
+
             unsafe {
                 // Do not attempt to move maximized windows (physics wouldn't make sense).
                 if IsZoomed(hwnd).as_bool() {

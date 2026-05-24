@@ -66,6 +66,11 @@ fn main() -> windows::core::Result<()> {
     // Initialize the main application with the receiver end of the event channel.
     let mut app = App::new(rx, config.physics, input_manager);
 
+    if !crate::platform::Platform::is_admin() {
+        println!("INFO: win-glide is running with standard user privileges.");
+        println!("Interaction with high-integrity windows (like Task Manager) will be restricted by Windows security.");
+    }
+
     println!("win-glide is running. Press Ctrl+Alt+F10 (or your configured hotkey) to start.");
     println!("Press Ctrl+C to exit.");
 
