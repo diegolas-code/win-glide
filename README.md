@@ -5,12 +5,18 @@ win-glide is a high-performance Windows utility designed for rapid, momentum-bas
 ## Core Features
 - **Fluid Keyboard Movement:** Move active windows using arrow keys with high-precision acceleration and friction, powered by a 120Hz physics loop.
 - **Snappy & Light Physics:** Uses a **Dual-Friction Model** for slow, deliberate acceleration to high speeds while maintaining a nearly instant "glide stop" upon release.
-- **Modern Visual Feedback:** A full-window semi-transparent blue tint clearly identifies the active glide target.
+- **Modern Visual Feedback:** A full-window semi-transparent blue tint with **8px rounded corners** and a slim **7px header** clearly identifies the active glide target.
+- **Instant Response:** Zero-copy rendering pipeline and immediate message pumping ensure the overlay appears with no perceived latency.
 - **Free Multi-Monitor Movement:** Glide windows seamlessly across your entire virtual desktop. Windows can be "parked" partially off-screen while maintaining a safe 150px visible margin.
 - **Safe & Responsive:**
     - **Maximized Window Guard:** Prevents accidental movement of maximized windows.
     - **Panic Exit:** Any keyboard input or mouse click immediately deactivates the glide session for instant control recovery.
     - **Shutdown:** Cleanly exits and releases system hooks on `Ctrl+C`.
+
+## Security & Privileges
+Due to Windows **User Interface Privilege Isolation (UIPI)**, standard-user applications are restricted from interacting with "high-integrity" windows.
+- **Task Manager / Elevated Apps:** To move windows belonging to Administrative processes (like Task Manager), you must **Run win-glide as Administrator**.
+- **Automatic Detection:** The application will warn you at startup if it's running with limited privileges and will skip activation on restricted windows with a clear console message.
 
 ## How to Use
 1.  **Launch:** Run the application (`cargo run` or the compiled binary).
