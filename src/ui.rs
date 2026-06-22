@@ -12,10 +12,9 @@ use windows::Win32::Graphics::Gdi::{
     CreateDIBSection, DIB_RGB_COLORS, DeleteDC, DeleteObject, SelectObject,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    CW_USEDEFAULT, CreateWindowExW, DefWindowProcW,
-    DeferWindowPos, HDWP, RegisterClassW, SW_HIDE, SW_SHOW, SWP_NOACTIVATE, SWP_NOZORDER,
-    ULW_ALPHA, UpdateLayeredWindow, WNDCLASSW, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TRANSPARENT,
-    WS_POPUP,
+    CW_USEDEFAULT, CreateWindowExW, DefWindowProcW, DeferWindowPos, HDWP, RegisterClassW, SW_HIDE,
+    SW_SHOW, SWP_NOACTIVATE, SWP_NOZORDER, ULW_ALPHA, UpdateLayeredWindow, WNDCLASSW,
+    WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TRANSPARENT, WS_POPUP,
 };
 use windows::core::w;
 
@@ -85,7 +84,7 @@ impl Overlay {
     pub fn set_owner(&self, owner: HWND) {
         use windows::Win32::UI::WindowsAndMessaging::{
             GWL_EXSTYLE, GWLP_HWNDPARENT, GetWindowLongW, HWND_NOTOPMOST, HWND_TOPMOST,
-            SetWindowLongPtrW, SetWindowPos, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, WS_EX_TOPMOST,
+            SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SetWindowLongPtrW, SetWindowPos, WS_EX_TOPMOST,
         };
         unsafe {
             // Set parent/owner relationship
@@ -159,8 +158,13 @@ impl Overlay {
                     if !bits.is_null() {
                         // 1. Wrap the DIB section's memory in a tiny-skia PixmapMut.
                         // This allows rendering directly into GDI-managed memory, eliminating a copy.
-                        let slice = std::slice::from_raw_parts_mut(bits as *mut u8, (width * height * 4) as usize);
-                        if let Some(mut pixmap) = PixmapMut::from_bytes(slice, width as u32, height as u32) {
+                        let slice = std::slice::from_raw_parts_mut(
+                            bits as *mut u8,
+                            (width * height * 4) as usize,
+                        );
+                        if let Some(mut pixmap) =
+                            PixmapMut::from_bytes(slice, width as u32, height as u32)
+                        {
                             // Clear with transparent (GDI memory might be uninitialized)
                             pixmap.fill(Color::TRANSPARENT);
 
@@ -277,8 +281,8 @@ impl Overlay {
 mod tests {
     use super::*;
     use windows::Win32::UI::WindowsAndMessaging::{
-        CreateWindowExW, DestroyWindow, GWL_EXSTYLE, GetWindowLongW, HWND_TOPMOST, HWND_NOTOPMOST,
-        SetWindowPos, SWP_NOMOVE, SWP_NOSIZE, SWP_NOACTIVATE, WS_EX_TOPMOST, WS_POPUP,
+        CreateWindowExW, DestroyWindow, GWL_EXSTYLE, GetWindowLongW, HWND_NOTOPMOST, HWND_TOPMOST,
+        SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SetWindowPos, WS_EX_TOPMOST, WS_POPUP,
     };
     use windows::core::w;
 
@@ -287,7 +291,8 @@ mod tests {
         let overlay = Overlay::new().unwrap();
 
         // Create a dummy window
-        let instance = unsafe { windows::Win32::System::LibraryLoader::GetModuleHandleW(None).unwrap() };
+        let instance =
+            unsafe { windows::Win32::System::LibraryLoader::GetModuleHandleW(None).unwrap() };
         let hwnd_test = unsafe {
             CreateWindowExW(
                 windows::Win32::UI::WindowsAndMessaging::WINDOW_EX_STYLE(0),
@@ -302,7 +307,8 @@ mod tests {
                 None,
                 instance,
                 None,
-            ).unwrap()
+            )
+            .unwrap()
         };
 
         // Case 1: Test window is not topmost -> Overlay parent should not be topmost

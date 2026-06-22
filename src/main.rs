@@ -43,7 +43,8 @@ fn main() -> windows::core::Result<()> {
     // the main application logic.
     let hotkey_config = config.hotkey.clone();
     let center_hotkey_config = config.center_hotkey.clone();
-    let (input_ready_tx, input_ready_rx) = unbounded::<Result<std::sync::Arc<InputManager>, windows::core::Error>>();
+    let (input_ready_tx, input_ready_rx) =
+        unbounded::<Result<std::sync::Arc<InputManager>, windows::core::Error>>();
 
     std::thread::spawn(move || {
         // Initialize the InputManager which sets up the Win32 hooks.
@@ -68,8 +69,13 @@ fn main() -> windows::core::Result<()> {
     {
         Ok(manager) => manager,
         Err(e) => {
-            eprintln!("\nCRITICAL ERROR: Failed to initialize win-glide input hooks: {}.", e);
-            eprintln!("Please make sure the activation hotkey is not already registered by another application.\n");
+            eprintln!(
+                "\nCRITICAL ERROR: Failed to initialize win-glide input hooks: {}.",
+                e
+            );
+            eprintln!(
+                "Please make sure the activation hotkey is not already registered by another application.\n"
+            );
             std::process::exit(1);
         }
     };
@@ -79,10 +85,15 @@ fn main() -> windows::core::Result<()> {
 
     if !crate::platform::Platform::is_admin() {
         println!("INFO: win-glide is running with standard user privileges.");
-        println!("Interaction with high-integrity windows (like Task Manager) will be restricted by Windows security.");
+        println!(
+            "Interaction with high-integrity windows (like Task Manager) will be restricted by Windows security."
+        );
     }
 
-    println!("win-glide is running. Press Ctrl+Alt+F10 (or your configured hotkey) to start.");
+    println!(
+        "win-glide is running. Press {} to start glide, or {} to center the window.",
+        config.hotkey, config.center_hotkey
+    );
     println!("Press Ctrl+C to exit.");
 
     // Run the main application loop (event processing and physics).

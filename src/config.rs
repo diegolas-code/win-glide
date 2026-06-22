@@ -28,6 +28,62 @@ pub struct HotkeyConfig {
     pub vk: u32,
 }
 
+impl std::fmt::Display for HotkeyConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut parts = Vec::new();
+        // Check modifiers
+        // MOD_WIN = 0x0008, MOD_CONTROL = 0x0002, MOD_SHIFT = 0x0004, MOD_ALT = 0x0001
+        if (self.modifiers & 0x0008) != 0 {
+            parts.push("Win");
+        }
+        if (self.modifiers & 0x0002) != 0 {
+            parts.push("Ctrl");
+        }
+        if (self.modifiers & 0x0004) != 0 {
+            parts.push("Shift");
+        }
+        if (self.modifiers & 0x0001) != 0 {
+            parts.push("Alt");
+        }
+
+        let key_name = match self.vk {
+            // Function keys
+            0x70 => "F1".to_string(),
+            0x71 => "F2".to_string(),
+            0x72 => "F3".to_string(),
+            0x73 => "F4".to_string(),
+            0x74 => "F5".to_string(),
+            0x75 => "F6".to_string(),
+            0x76 => "F7".to_string(),
+            0x77 => "F8".to_string(),
+            0x78 => "F9".to_string(),
+            0x79 => "F10".to_string(),
+            0x7A => "F11".to_string(),
+            0x7B => "F12".to_string(),
+            // Alpha-numeric
+            vk @ 0x30..=0x39 => ((vk as u8) as char).to_string(),
+            vk @ 0x41..=0x5A => ((vk as u8) as char).to_string(),
+            // Arrow keys
+            0x25 => "Left".to_string(),
+            0x26 => "Up".to_string(),
+            0x27 => "Right".to_string(),
+            0x28 => "Down".to_string(),
+            // Other common keys
+            0x08 => "Backspace".to_string(),
+            0x09 => "Tab".to_string(),
+            0x0D => "Enter".to_string(),
+            0x1B => "Escape".to_string(),
+            0x20 => "Space".to_string(),
+            0x2E => "Delete".to_string(),
+            // Fallback
+            vk => format!("0x{:X}", vk),
+        };
+
+        parts.push(&key_name);
+        write!(f, "{}", parts.join("+"))
+    }
+}
+
 impl Default for Config {
     fn default() -> Self {
         Self {
@@ -106,5 +162,20 @@ mod tests {
         let config = config.unwrap();
         assert_eq!(config.center_hotkey.modifiers, 9);
         assert_eq!(config.center_hotkey.vk, 67);
+    }
+
+    #[test]
+    fn test_hotkey_config_display() {
+        let hk = HotkeyConfig {
+            modifiers: 0x0002 | 0x0001, // MOD_CONTROL | MOD_ALT
+            vk: 0x79,                   // F10
+        };
+        assert_eq!(hk.to_string(), "Ctrl+Alt+F10");
+
+        let hk_center = HotkeyConfig {
+            modifiers: 0x0008 | 0x0001, // MOD_WIN | MOD_ALT
+            vk: 0x43,                   // C
+        };
+        assert_eq!(hk_center.to_string(), "Win+Alt+C");
     }
 }

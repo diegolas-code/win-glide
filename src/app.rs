@@ -16,7 +16,7 @@ use std::time::{Duration, Instant};
 use windows::Win32::Foundation::{HWND, RECT};
 use windows::Win32::UI::WindowsAndMessaging::{
     BeginDeferWindowPos, DeferWindowPos, EndDeferWindowPos, GetWindowRect, IsZoomed,
-    SetWindowPos, SWP_NOACTIVATE, SWP_NOCOPYBITS, SWP_NOSIZE, SWP_NOZORDER,
+    SWP_NOACTIVATE, SWP_NOCOPYBITS, SWP_NOSIZE, SWP_NOZORDER, SetWindowPos,
 };
 
 /// The central application controller.
@@ -223,7 +223,9 @@ impl App {
             }
 
             if crate::window::is_window_elevated(hwnd) && !Platform::is_admin() {
-                println!("App: Cannot center an elevated window (Access Denied). Run win-glide as Administrator.");
+                println!(
+                    "App: Cannot center an elevated window (Access Denied). Run win-glide as Administrator."
+                );
                 return;
             }
 
@@ -290,7 +292,10 @@ impl App {
                         uflags,
                     );
                 }
-                println!("App: Centered window to ({}, {}) with size {}x{}", new_rect.left, new_rect.top, new_w, new_h);
+                println!(
+                    "App: Centered window to ({}, {}) with size {}x{}",
+                    new_rect.left, new_rect.top, new_w, new_h
+                );
             }
         }
     }
@@ -306,7 +311,9 @@ impl App {
             // UIPI (User Interface Privilege Isolation) prevents a lower-integrity
             // process from interacting with higher-integrity windows.
             if crate::window::is_window_elevated(hwnd) && !Platform::is_admin() {
-                println!("App: Cannot glide an elevated window (Access Denied). Run win-glide as Administrator to enable this.");
+                println!(
+                    "App: Cannot glide an elevated window (Access Denied). Run win-glide as Administrator to enable this."
+                );
                 return;
             }
 

@@ -4,8 +4,10 @@
 //! focusing on identifying the current user-focused window.
 
 use windows::Win32::Foundation::{CloseHandle, HANDLE, HWND, RECT};
-use windows::Win32::System::Threading::{OpenProcess, OpenProcessToken, PROCESS_QUERY_LIMITED_INFORMATION};
-use windows::Win32::Security::{TokenElevation, TOKEN_ELEVATION, TOKEN_QUERY};
+use windows::Win32::Security::{TOKEN_ELEVATION, TOKEN_QUERY, TokenElevation};
+use windows::Win32::System::Threading::{
+    OpenProcess, OpenProcessToken, PROCESS_QUERY_LIMITED_INFORMATION,
+};
 
 /// Returns the handle of the window currently in the foreground (focused by the user).
 ///
@@ -21,8 +23,8 @@ pub fn get_active_window() -> HWND {
 /// high-integrity windows (like Task Manager) if the application itself
 /// is not elevated, as UIPI (User Interface Privilege Isolation) would block it.
 pub fn is_window_elevated(hwnd: HWND) -> bool {
-    use windows::Win32::UI::WindowsAndMessaging::GetWindowThreadProcessId;
     use windows::Win32::Foundation::WIN32_ERROR;
+    use windows::Win32::UI::WindowsAndMessaging::GetWindowThreadProcessId;
 
     unsafe {
         let mut pid: u32 = 0;
@@ -97,8 +99,8 @@ pub fn calculate_centered_rect(window_rect: RECT, work_area: RECT) -> RECT {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use windows::Win32::UI::WindowsAndMessaging::GetForegroundWindow;
     use windows::Win32::Foundation::RECT;
+    use windows::Win32::UI::WindowsAndMessaging::GetForegroundWindow;
 
     #[test]
     fn test_get_active_window() {
@@ -111,8 +113,18 @@ mod tests {
     #[test]
     fn test_calculate_centered_rect() {
         // Normal sizing: fits in work area
-        let window_rect = RECT { left: 100, top: 100, right: 300, bottom: 200 }; // 200x100
-        let work_area = RECT { left: 0, top: 0, right: 1000, bottom: 1000 };
+        let window_rect = RECT {
+            left: 100,
+            top: 100,
+            right: 300,
+            bottom: 200,
+        }; // 200x100
+        let work_area = RECT {
+            left: 0,
+            top: 0,
+            right: 1000,
+            bottom: 1000,
+        };
         let result = calculate_centered_rect(window_rect, work_area);
         assert_eq!(result.left, 400);
         assert_eq!(result.top, 450);
@@ -120,7 +132,12 @@ mod tests {
         assert_eq!(result.bottom - result.top, 100);
 
         // Oversized sizing: too large for work area (width and height shrunk)
-        let window_rect_large = RECT { left: 100, top: 100, right: 1200, bottom: 1200 }; // 1100x1100
+        let window_rect_large = RECT {
+            left: 100,
+            top: 100,
+            right: 1200,
+            bottom: 1200,
+        }; // 1100x1100
         let result_large = calculate_centered_rect(window_rect_large, work_area);
         assert_eq!(result_large.left, 0);
         assert_eq!(result_large.top, 0);
@@ -128,7 +145,12 @@ mod tests {
         assert_eq!(result_large.bottom, 1000);
 
         // Oversized width, fitting height
-        let window_rect_wide = RECT { left: 100, top: 100, right: 1500, bottom: 500 }; // 1400x400
+        let window_rect_wide = RECT {
+            left: 100,
+            top: 100,
+            right: 1500,
+            bottom: 500,
+        }; // 1400x400
         let result_wide = calculate_centered_rect(window_rect_wide, work_area);
         assert_eq!(result_wide.left, 0);
         assert_eq!(result_wide.top, 300);

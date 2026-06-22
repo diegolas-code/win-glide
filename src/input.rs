@@ -136,7 +136,8 @@ unsafe extern "system" fn keyboard_proc(code: i32, wparam: WPARAM, lparam: LPARA
                 WM_KEYDOWN | WM_SYSKEYDOWN => {
                     // Check if it matches any registered hotkeys (VK and modifiers)
                     let is_hk = if let Some(hks) = HOTKEYS.get() {
-                        hks.iter().any(|hk| hk.vk == vk_code && check_modifiers(hk.modifiers))
+                        hks.iter()
+                            .any(|hk| hk.vk == vk_code && check_modifiers(hk.modifiers))
                     } else {
                         false
                     };
@@ -278,13 +279,26 @@ impl InputManager {
     ) -> windows::core::Result<Self> {
         set_event_sender(sender);
 
-        let hotkey = HotkeyManager::new(1337, HOT_KEY_MODIFIERS(hotkey_config.modifiers), hotkey_config.vk)?;
-        
-        let center_hotkey = match HotkeyManager::new(1338, HOT_KEY_MODIFIERS(center_hotkey_config.modifiers), center_hotkey_config.vk) {
+        let hotkey = HotkeyManager::new(
+            1337,
+            HOT_KEY_MODIFIERS(hotkey_config.modifiers),
+            hotkey_config.vk,
+        )?;
+
+        let center_hotkey = match HotkeyManager::new(
+            1338,
+            HOT_KEY_MODIFIERS(center_hotkey_config.modifiers),
+            center_hotkey_config.vk,
+        ) {
             Ok(hk) => Some(hk),
             Err(e) => {
-                eprintln!("\nWARNING: Failed to register window center hotkey (Win+Alt+C): {}.", e);
-                eprintln!("The centering feature will be disabled. Change center_hotkey in config.json.\n");
+                eprintln!(
+                    "\nWARNING: Failed to register window center hotkey (Win+Alt+C): {}.",
+                    e
+                );
+                eprintln!(
+                    "The centering feature will be disabled. Change center_hotkey in config.json.\n"
+                );
                 None
             }
         };
@@ -383,7 +397,11 @@ mod tests {
     fn test_center_hotkey_registration() {
         // Register Ctrl + Win + Z (0x5A) as a test hotkey
         let res = HotkeyManager::new(998, MOD_CONTROL | HOT_KEY_MODIFIERS(0x0008), 0x5A);
-        assert!(res.is_ok(), "Center hotkey registration failed: {:?}", res.err());
+        assert!(
+            res.is_ok(),
+            "Center hotkey registration failed: {:?}",
+            res.err()
+        );
     }
 
     #[test]

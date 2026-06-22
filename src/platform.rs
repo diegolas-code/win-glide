@@ -74,7 +74,7 @@ impl Platform {
     /// Retrieves the work area (excluding taskbars) of the monitor nearest to the given window.
     pub fn get_nearest_monitor_work_area(hwnd: HWND) -> Result<RECT, windows::core::Error> {
         use windows::Win32::Graphics::Gdi::{
-            GetMonitorInfoW, MonitorFromWindow, MONITORINFO, MONITOR_DEFAULTTONEAREST,
+            GetMonitorInfoW, MONITOR_DEFAULTTONEAREST, MONITORINFO, MonitorFromWindow,
         };
 
         unsafe {
@@ -96,7 +96,7 @@ impl Platform {
     /// Checks if the current process is running with Administrative privileges.
     pub fn is_admin() -> bool {
         use windows::Win32::Foundation::{CloseHandle, HANDLE};
-        use windows::Win32::Security::{TokenElevation, TOKEN_ELEVATION, TOKEN_QUERY};
+        use windows::Win32::Security::{TOKEN_ELEVATION, TOKEN_QUERY, TokenElevation};
         use windows::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken};
 
         unsafe {
