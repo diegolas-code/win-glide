@@ -36,7 +36,7 @@ win-glide is a high-performance Windows utility for rapid, momentum-based window
 *   **Explicit Exit:** `Esc` key, any alphanumeric key, or focus loss.
 
 ## 8. Instant Center Action (New)
-*   **Trigger:** `Ctrl + Win + C`.
+*   **Trigger:** `Win + Alt + C`.
 *   **Intent:** Instantly center the current foreground window on the active monitor.
 *   **Mode:** One-shot action (does not start a glide session by itself).
 *   **Target Monitor:** Use the monitor nearest to the target window (`MonitorFromWindow(..., MONITOR_DEFAULTTONEAREST)`).

@@ -12,7 +12,7 @@
 
 * The functionality stops after a few seconds without pressing direction keys or upon entering any other key.
 
-* A dedicated global shortcut centers the currently focused window on its current monitor: `Ctrl + Win + C`.
+* A dedicated global shortcut centers the currently focused window on its current monitor: `Win + Alt + C`.
 
 * Centering is immediate and independent from glide mode. It should feel like a quick layout action, while glide remains the continuous movement mode.
 
