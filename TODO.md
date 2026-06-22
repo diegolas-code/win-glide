@@ -98,6 +98,7 @@
 - [x] Update README hotkey documentation and config notes if schema changes
 - [x] Fix hotkey interception inside low-level keyboard hook to prevent deactivating active glide sessions
 - [x] Fix overlay Z-order: dynamically synchronize overlay topmost style with target window topmost status
+- [x] Inform about the centering hotkey in the console output dynamically
 - [ ] Commit & Merge to dev
 
 ## Phase 10: Productization (The Road to v1.0.0)
