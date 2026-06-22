@@ -50,6 +50,35 @@ static EVENT_SENDER: OnceLock<Sender<InputEvent>> = OnceLock::new();
 /// Atomic flag used by hooks to know if they should intercept input.
 static IS_SESSION_ACTIVE: AtomicBool = AtomicBool::new(false);
 
+/// Store the registered hotkey configurations globally so hooks can access them.
+static HOTKEYS: OnceLock<Vec<crate::config::HotkeyConfig>> = OnceLock::new();
+
+/// Returns true if the required modifier keys are currently pressed.
+fn check_modifiers(required_modifiers: u32) -> bool {
+    use windows::Win32::UI::Input::KeyboardAndMouse::{
+        GetKeyState, VK_CONTROL, VK_LWIN, VK_MENU, VK_RWIN, VK_SHIFT,
+    };
+
+    unsafe {
+        if (required_modifiers & 0x0002) != 0 && GetKeyState(VK_CONTROL.0 as i32) >= 0 {
+            return false;
+        }
+        if (required_modifiers & 0x0001) != 0 && GetKeyState(VK_MENU.0 as i32) >= 0 {
+            return false;
+        }
+        if (required_modifiers & 0x0004) != 0 && GetKeyState(VK_SHIFT.0 as i32) >= 0 {
+            return false;
+        }
+        if (required_modifiers & 0x0008) != 0
+            && GetKeyState(VK_LWIN.0 as i32) >= 0
+            && GetKeyState(VK_RWIN.0 as i32) >= 0
+        {
+            return false;
+        }
+    }
+    true
+}
+
 pub fn set_event_sender(sender: Sender<InputEvent>) {
     if EVENT_SENDER.set(sender).is_err() {
         eprintln!("Warning: EVENT_SENDER was already set and cannot be re-initialized.");
@@ -105,6 +134,18 @@ unsafe extern "system" fn keyboard_proc(code: i32, wparam: WPARAM, lparam: LPARA
 
             let is_key_down = match wparam.0 as u32 {
                 WM_KEYDOWN | WM_SYSKEYDOWN => {
+                    // Check if it matches any registered hotkeys (VK and modifiers)
+                    let is_hk = if let Some(hks) = HOTKEYS.get() {
+                        hks.iter().any(|hk| hk.vk == vk_code && check_modifiers(hk.modifiers))
+                    } else {
+                        false
+                    };
+
+                    if is_hk {
+                        // Let it pass through to the OS so WM_HOTKEY fires, and don't emit KeyDown to App
+                        return unsafe { CallNextHookEx(None, code, wparam, lparam) };
+                    }
+
                     emit_event(InputEvent::KeyDown(vk_code));
                     true
                 }
@@ -242,11 +283,18 @@ impl InputManager {
         let center_hotkey = match HotkeyManager::new(1338, HOT_KEY_MODIFIERS(center_hotkey_config.modifiers), center_hotkey_config.vk) {
             Ok(hk) => Some(hk),
             Err(e) => {
-                eprintln!("\nWARNING: Failed to register window center hotkey (Ctrl+Win+C): {}.", e);
-                eprintln!("The centering feature will be disabled. You can disable Windows Color Filters in Settings, or configure a different hotkey in config.json.\n");
+                eprintln!("\nWARNING: Failed to register window center hotkey (Win+Alt+C): {}.", e);
+                eprintln!("The centering feature will be disabled. Change center_hotkey in config.json.\n");
                 None
             }
         };
+
+        // Populate global hotkey configs for hook access.
+        let mut registered_hotkeys = vec![hotkey_config];
+        if center_hotkey.is_some() {
+            registered_hotkeys.push(center_hotkey_config);
+        }
+        let _ = HOTKEYS.set(registered_hotkeys);
 
         let kbd_hook = KeyboardHook::new(keyboard_proc)?;
         let mouse_hook = MouseHook::new(mouse_proc)?;
