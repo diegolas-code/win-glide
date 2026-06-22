@@ -15,6 +15,8 @@ pub struct Config {
     pub physics: PhysicsConfig,
     /// Global hotkey configuration.
     pub hotkey: HotkeyConfig,
+    /// Global hotkey configuration for centering the window.
+    pub center_hotkey: HotkeyConfig,
 }
 
 /// Structure for defining the activation hotkey.
@@ -34,6 +36,11 @@ impl Default for Config {
                 // Default to Ctrl + Alt + F10
                 modifiers: 0x0002 | 0x0001, // MOD_CONTROL | MOD_ALT
                 vk: 0x79,                   // F10
+            },
+            center_hotkey: HotkeyConfig {
+                // Default to Win + Alt + C
+                modifiers: 0x0008 | 0x0001, // MOD_WIN | MOD_ALT
+                vk: 0x43,                   // C
             },
         }
     }
@@ -69,5 +76,35 @@ impl Config {
         let content = serde_json::to_string_pretty(self)?;
         fs::write("config.json", content)?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_config_deserialization_with_center_hotkey() {
+        let json_data = r#"{
+            "physics": {
+                "acceleration": 4000.0,
+                "friction": 10.0,
+                "thrust_friction": 0.5,
+                "top_speed": 4000.0
+            },
+            "hotkey": {
+                "modifiers": 3,
+                "vk": 121
+            },
+            "center_hotkey": {
+                "modifiers": 9,
+                "vk": 67
+            }
+        }"#;
+        let config: Result<Config, _> = serde_json::from_str(json_data);
+        assert!(config.is_ok());
+        let config = config.unwrap();
+        assert_eq!(config.center_hotkey.modifiers, 9);
+        assert_eq!(config.center_hotkey.vk, 67);
     }
 }

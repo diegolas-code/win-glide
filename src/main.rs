@@ -42,26 +42,37 @@ fn main() -> windows::core::Result<()> {
     // ideally run on a dedicated thread to avoid blocking or being blocked by
     // the main application logic.
     let hotkey_config = config.hotkey.clone();
-    let (input_ready_tx, input_ready_rx) = unbounded::<std::sync::Arc<InputManager>>();
+    let center_hotkey_config = config.center_hotkey.clone();
+    let (input_ready_tx, input_ready_rx) = unbounded::<Result<std::sync::Arc<InputManager>, windows::core::Error>>();
 
     std::thread::spawn(move || {
         // Initialize the InputManager which sets up the Win32 hooks.
-        let manager = std::sync::Arc::new(
-            InputManager::new_with_config(tx, hotkey_config)
-                .expect("Failed to initialize InputManager"),
-        );
-
-        // Signal that the input manager is ready.
-        input_ready_tx.send(manager.clone()).unwrap();
-
-        // Start the Win32 message loop required for hooks.
-        manager.run_loop();
+        match InputManager::new_with_config(tx, hotkey_config, center_hotkey_config) {
+            Ok(manager) => {
+                let manager = std::sync::Arc::new(manager);
+                // Signal that the input manager is ready.
+                let _ = input_ready_tx.send(Ok(manager.clone()));
+                // Start the Win32 message loop required for hooks.
+                manager.run_loop();
+            }
+            Err(e) => {
+                let _ = input_ready_tx.send(Err(e));
+            }
+        }
     });
 
     // Wait for the input thread to initialize before starting the app.
-    let input_manager = input_ready_rx
+    let input_manager = match input_ready_rx
         .recv()
-        .expect("Failed to receive InputManager");
+        .expect("Failed to receive InputManager initialization status")
+    {
+        Ok(manager) => manager,
+        Err(e) => {
+            eprintln!("\nCRITICAL ERROR: Failed to initialize win-glide input hooks: {}.", e);
+            eprintln!("Please make sure the activation hotkey is not already registered by another application.\n");
+            std::process::exit(1);
+        }
+    };
 
     // Initialize the main application with the receiver end of the event channel.
     let mut app = App::new(rx, config.physics, input_manager);

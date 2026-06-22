@@ -8,5 +8,9 @@
   "hotkey": {
     "modifiers": 3,
     "vk": 121
+  },
+  "center_hotkey": {
+    "modifiers": 9,
+    "vk": 67
   }
 }

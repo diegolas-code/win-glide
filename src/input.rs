@@ -219,6 +219,7 @@ use crate::config::HotkeyConfig;
 /// Orchestrates input threads and hooks.
 pub struct InputManager {
     _hotkey: HotkeyManager,
+    _center_hotkey: Option<HotkeyManager>,
     _kbd_hook: KeyboardHook,
     _mouse_hook: MouseHook,
     thread_id: u32,
@@ -231,17 +232,29 @@ impl InputManager {
     /// Initializes all hooks and hotkeys based on the provided configuration.
     pub fn new_with_config(
         sender: Sender<InputEvent>,
-        config: HotkeyConfig,
+        hotkey_config: HotkeyConfig,
+        center_hotkey_config: HotkeyConfig,
     ) -> windows::core::Result<Self> {
         set_event_sender(sender);
 
-        let hotkey = HotkeyManager::new(1337, HOT_KEY_MODIFIERS(config.modifiers), config.vk)?;
+        let hotkey = HotkeyManager::new(1337, HOT_KEY_MODIFIERS(hotkey_config.modifiers), hotkey_config.vk)?;
+        
+        let center_hotkey = match HotkeyManager::new(1338, HOT_KEY_MODIFIERS(center_hotkey_config.modifiers), center_hotkey_config.vk) {
+            Ok(hk) => Some(hk),
+            Err(e) => {
+                eprintln!("\nWARNING: Failed to register window center hotkey (Ctrl+Win+C): {}.", e);
+                eprintln!("The centering feature will be disabled. You can disable Windows Color Filters in Settings, or configure a different hotkey in config.json.\n");
+                None
+            }
+        };
+
         let kbd_hook = KeyboardHook::new(keyboard_proc)?;
         let mouse_hook = MouseHook::new(mouse_proc)?;
         let thread_id = unsafe { GetCurrentThreadId() };
 
         Ok(Self {
             _hotkey: hotkey,
+            _center_hotkey: center_hotkey,
             _kbd_hook: kbd_hook,
             _mouse_hook: mouse_hook,
             thread_id,
@@ -319,10 +332,18 @@ mod tests {
     }
 
     #[test]
+    fn test_center_hotkey_registration() {
+        // Register Ctrl + Win + Z (0x5A) as a test hotkey
+        let res = HotkeyManager::new(998, MOD_CONTROL | HOT_KEY_MODIFIERS(0x0008), 0x5A);
+        assert!(res.is_ok(), "Center hotkey registration failed: {:?}", res.err());
+    }
+
+    #[test]
     #[ignore]
     fn test_input_manager_initialization() {
         let (tx, _rx) = crossbeam_channel::unbounded();
-        let manager = InputManager::new_with_config(tx, crate::config::Config::default().hotkey);
+        let config = crate::config::Config::default();
+        let manager = InputManager::new_with_config(tx, config.hotkey, config.center_hotkey);
         assert!(
             manager.is_ok(),
             "InputManager creation failed: {:?}",

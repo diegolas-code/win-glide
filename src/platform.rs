@@ -71,6 +71,28 @@ impl Platform {
         }
     }
 
+    /// Retrieves the work area (excluding taskbars) of the monitor nearest to the given window.
+    pub fn get_nearest_monitor_work_area(hwnd: HWND) -> Result<RECT, windows::core::Error> {
+        use windows::Win32::Graphics::Gdi::{
+            GetMonitorInfoW, MonitorFromWindow, MONITORINFO, MONITOR_DEFAULTTONEAREST,
+        };
+
+        unsafe {
+            let hmonitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+            if hmonitor.is_invalid() {
+                return Err(windows::core::Error::from_win32());
+            }
+
+            let mut info = MONITORINFO {
+                cbSize: std::mem::size_of::<MONITORINFO>() as u32,
+                ..Default::default()
+            };
+
+            GetMonitorInfoW(hmonitor, &mut info).ok()?;
+            Ok(info.rcWork)
+        }
+    }
+
     /// Checks if the current process is running with Administrative privileges.
     pub fn is_admin() -> bool {
         use windows::Win32::Foundation::{CloseHandle, HANDLE};
@@ -138,6 +160,16 @@ mod tests {
         let hwnd = unsafe { GetForegroundWindow() };
         let dpi = Platform::get_dpi_for_window(hwnd);
         assert!(dpi > 0);
+    }
+
+    #[test]
+    fn test_get_nearest_monitor_work_area() {
+        let hwnd = unsafe { GetForegroundWindow() };
+        let work_area = Platform::get_nearest_monitor_work_area(hwnd);
+        assert!(work_area.is_ok());
+        let rect = work_area.unwrap();
+        assert!(rect.right > rect.left);
+        assert!(rect.bottom > rect.top);
     }
 
     #[test]

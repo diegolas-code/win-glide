@@ -16,7 +16,7 @@ use std::time::{Duration, Instant};
 use windows::Win32::Foundation::{HWND, RECT};
 use windows::Win32::UI::WindowsAndMessaging::{
     BeginDeferWindowPos, DeferWindowPos, EndDeferWindowPos, GetWindowRect, IsZoomed,
-    SWP_NOACTIVATE, SWP_NOCOPYBITS, SWP_NOSIZE, SWP_NOZORDER,
+    SetWindowPos, SWP_NOACTIVATE, SWP_NOCOPYBITS, SWP_NOSIZE, SWP_NOZORDER,
 };
 
 /// The central application controller.
@@ -160,10 +160,21 @@ impl App {
             match event {
                 InputEvent::HotkeyTriggered(id) => {
                     println!("Hotkey triggered (ID: {})", id);
-                    self.activate_session();
-                    // Force a message pump to ensure the window shows up immediately
-                    // without waiting for the next loop iteration.
-                    self.pump_messages();
+                    if id == 1337 {
+                        self.activate_session();
+                        // Force a message pump to ensure the window shows up immediately
+                        // without waiting for the next loop iteration.
+                        self.pump_messages();
+                    } else if id == 1338 {
+                        let target_hwnd = if let Some(active) = self.active_window {
+                            active
+                        } else {
+                            get_active_window()
+                        };
+                        if !target_hwnd.is_invalid() {
+                            self.center_window(target_hwnd);
+                        }
+                    }
                 }
                 InputEvent::KeyDown(vk) => {
                     if self.active_window.is_some() {
@@ -198,6 +209,88 @@ impl App {
                     self.input_manager.request_stop();
                     self.running = false;
                 }
+            }
+        }
+    }
+
+    /// Centers the specified window on the nearest monitor, adjusting size if needed,
+    /// and updates physical state if a glide session is active.
+    fn center_window(&mut self, hwnd: HWND) {
+        unsafe {
+            if IsZoomed(hwnd).as_bool() {
+                println!("App: Cannot center a maximized window.");
+                return;
+            }
+
+            if crate::window::is_window_elevated(hwnd) && !Platform::is_admin() {
+                println!("App: Cannot center an elevated window (Access Denied). Run win-glide as Administrator.");
+                return;
+            }
+
+            let mut rect = RECT::default();
+            if GetWindowRect(hwnd, &mut rect).is_ok() {
+                let work_area = match Platform::get_nearest_monitor_work_area(hwnd) {
+                    Ok(wa) => wa,
+                    Err(e) => {
+                        eprintln!("App: Failed to query nearest monitor work area: {:?}", e);
+                        return;
+                    }
+                };
+
+                let new_rect = crate::window::calculate_centered_rect(rect, work_area);
+                let new_w = new_rect.right - new_rect.left;
+                let new_h = new_rect.bottom - new_rect.top;
+                let old_w = rect.right - rect.left;
+                let old_h = rect.bottom - rect.top;
+
+                let size_changed = new_w != old_w || new_h != old_h;
+                let uflags = if size_changed {
+                    SWP_NOACTIVATE | SWP_NOZORDER
+                } else {
+                    SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOSIZE
+                };
+
+                if self.active_window == Some(hwnd) {
+                    // Update internal state
+                    self.pos_x = new_rect.left as f32;
+                    self.pos_y = new_rect.top as f32;
+                    self.window_rect = new_rect;
+                    self.physics.velocity = Vector2D::default();
+
+                    // If active, move window and overlay together
+                    if let Ok(hdwp) = BeginDeferWindowPos(2) {
+                        let mut hdwp = hdwp;
+                        if let Ok(h) = DeferWindowPos(
+                            hdwp,
+                            hwnd,
+                            HWND::default(),
+                            new_rect.left,
+                            new_rect.top,
+                            new_w,
+                            new_h,
+                            uflags | SWP_NOCOPYBITS,
+                        ) {
+                            hdwp = h;
+                        }
+                        if let Ok(h) = self.overlay.defer_update_position(hdwp, new_rect) {
+                            hdwp = h;
+                        }
+                        let _ = EndDeferWindowPos(hdwp);
+                        self.last_sent_rect = new_rect;
+                    }
+                } else {
+                    // Inactive: just move target window directly
+                    let _ = SetWindowPos(
+                        hwnd,
+                        HWND::default(),
+                        new_rect.left,
+                        new_rect.top,
+                        new_w,
+                        new_h,
+                        uflags,
+                    );
+                }
+                println!("App: Centered window to ({}, {}) with size {}x{}", new_rect.left, new_rect.top, new_w, new_h);
             }
         }
     }
