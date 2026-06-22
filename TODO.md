@@ -85,11 +85,23 @@
 - [x] Profile and minimize GDI handle usage and memory allocations (Stable Polling approach)
 - [x] Commit & Merge to dev
 
-## Phase 9: Productization (The Road to v1.0.0)
+## Phase 9: Window Center Hotkey (`Ctrl + Win + C`)
+- [ ] Add a second global hotkey registration for center action (separate ID from glide hotkey)
+- [ ] Extend input event model with a dedicated center command event
+- [ ] Implement monitor work-area query helper for nearest monitor (`MonitorFromWindow` + `GetMonitorInfoW`)
+- [ ] Implement center-position calculation utility (window rect + monitor work area)
+- [ ] Implement one-shot centering path when glide session is inactive
+- [ ] Integrate centering while glide session is active (move overlay too; zero velocity)
+- [ ] Add safety guards: skip maximized/elevated windows under existing policy
+- [ ] Add unit tests for center calculation math and edge cases (odd/even dimensions)
+- [ ] Add integration/system test for hotkey event dispatch and action routing
+- [ ] Update README hotkey documentation and config notes if schema changes
+- [ ] Commit & Merge to dev
+
+## Phase 10: Productization (The Road to v1.0.0)
 - [ ] Create a release-optimized build profile
 - [ ] Implement a system tray icon for easy exit and status visibility
 - [ ] Research and implement a simple installer (e.g., Inno Setup or a WiX-based MSI)
 - [ ] Final audit of the `config.json` schema for long-term stability
 - [ ] Finalize user documentation and version bump to v1.0.0
 - [ ] Commit & Merge to dev
-

@@ -4,6 +4,7 @@ win-glide is a high-performance Windows utility designed for rapid, momentum-bas
 
 ## Core Features
 - **Fluid Keyboard Movement:** Move active windows using arrow keys with high-precision acceleration and friction, powered by a 120Hz physics loop.
+- **Instant Window Centering (Planned):** Press **`Ctrl + Win + C`** to center the focused window on its current monitor in one step.
 - **Snappy & Light Physics:** Uses a **Dual-Friction Model** for slow, deliberate acceleration to high speeds while maintaining a nearly instant "glide stop" upon release.
 - **Modern Visual Feedback:** A full-window semi-transparent blue tint with **8px rounded corners** and a slim **7px header** clearly identifies the active glide target.
 - **Instant Response:** Zero-copy rendering pipeline and immediate message pumping ensure the overlay appears with no perceived latency.
@@ -21,8 +22,9 @@ Due to Windows **User Interface Privilege Isolation (UIPI)**, standard-user appl
 ## How to Use
 1.  **Launch:** Run the application (`cargo run` or the compiled binary).
 2.  **Activate:** Press **`Ctrl + Alt + F10`** while any window is focused to start a "glide" session. A blue tint will appear over the window.
-3.  **Move:** Use the **Arrow Keys** to apply thrust. Acceleration is continuous; hold the keys to reach top speed (~1.3s spin-up).
-4.  **Exit:** 
+3.  **Center (One-Shot, Planned):** Press **`Ctrl + Win + C`** to center the focused window inside the monitor work area (taskbar-aware).
+4.  **Move:** Use the **Arrow Keys** to apply thrust. Acceleration is continuous; hold the keys to reach top speed (~1.3s spin-up).
+5.  **Exit:** 
     - **Keys:** Press **`Esc`** or **any non-arrow key** to simply let the window glide to a stop.
     - **Mouse:** **Click anywhere** to instantly deactivate the session.
     - **Timeout:** The session automatically ends after **5 seconds** of inactivity.

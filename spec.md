@@ -34,7 +34,26 @@ win-glide is a high-performance Windows utility for rapid, momentum-based window
 ## 7. Exit & Safety
 *   **Trigger:** `Ctrl + Alt + F10` activates the movement session for the current foreground window.
 *   **Explicit Exit:** `Esc` key, any alphanumeric key, or focus loss.
-## 8. Engineering Standards & Workflow
+
+## 8. Instant Center Action (New)
+*   **Trigger:** `Ctrl + Win + C`.
+*   **Intent:** Instantly center the current foreground window on the active monitor.
+*   **Mode:** One-shot action (does not start a glide session by itself).
+*   **Target Monitor:** Use the monitor nearest to the target window (`MonitorFromWindow(..., MONITOR_DEFAULTTONEAREST)`).
+*   **Reference Area:** Center inside the monitor `WorkArea` (not full monitor bounds), so taskbar-reserved space is respected.
+*   **Position Formula:**
+	*   `new_left = work.left + (work_width - window_width) / 2`
+	*   `new_top  = work.top  + (work_height - window_height) / 2`
+*   **Move API:** Use `SetWindowPos` (or `DeferWindowPos` when paired with overlay) with `SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOSIZE`.
+*   **Session Interaction:**
+	*   If glide session is inactive: reposition window only.
+	*   If glide session is active: reposition both window and overlay, and zero current velocity to avoid immediate drift after centering.
+*   **Safety Rules:**
+	*   Skip maximized windows.
+	*   Skip elevated windows when app is not elevated (same UIPI policy as glide activation).
+	*   If work area query fails, abort gracefully without moving the window.
+
+## 9. Engineering Standards & Workflow
 *   **Test-Driven Development (TDD):** Every feature must be accompanied by unit or integration tests to ensure reliability and easy debugging.
 *   **Code Quality:** Strictly adhere to Rust best practices (idiomatic code, clear ownership, robust error handling with `thiserror`).
 *   **Incremental Development:** Work in small, logical steps. Commit frequently with descriptive messages.

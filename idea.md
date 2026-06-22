@@ -12,4 +12,8 @@
 
 * The functionality stops after a few seconds without pressing direction keys or upon entering any other key.
 
+* A dedicated global shortcut centers the currently focused window on its current monitor: `Ctrl + Win + C`.
+
+* Centering is immediate and independent from glide mode. It should feel like a quick layout action, while glide remains the continuous movement mode.
+
 * The sensitivity of the arrows will be a parameter specified by the user with a default value. In an initial stage, this value will be read from a configuration file.
