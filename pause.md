@@ -13,6 +13,7 @@
     - **Work-Area Aware Math:** Queries the nearest monitor work area and centers the window inside it, respecting taskbar bounds.
     - **Oversized Windows:** Automatically resizes (shrinks) the window if it is larger than the work area before centering.
     - **Glide Integration:** Safely centers both the target window and the overlay synchronously while resetting glide velocity to zero.
+    - **Hook Interception Fix:** Suppressed deactivating KeyDown events and allowed registered global hotkeys to pass through keyboard hooks to the OS while a glide session is active.
 
 ## Immediate Next Steps
 - **Phase 10: Productization (Queued Next)**
