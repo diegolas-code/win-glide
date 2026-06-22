@@ -83,9 +83,34 @@ impl Overlay {
     /// Sets the target window as the "owner" of the overlay.
     /// This ensures the overlay stays on top of the target window.
     pub fn set_owner(&self, owner: HWND) {
-        use windows::Win32::UI::WindowsAndMessaging::{GWLP_HWNDPARENT, SetWindowLongPtrW};
+        use windows::Win32::UI::WindowsAndMessaging::{
+            GWL_EXSTYLE, GWLP_HWNDPARENT, GetWindowLongW, HWND_NOTOPMOST, HWND_TOPMOST,
+            SetWindowLongPtrW, SetWindowPos, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, WS_EX_TOPMOST,
+        };
         unsafe {
+            // Set parent/owner relationship
             SetWindowLongPtrW(self.hwnd, GWLP_HWNDPARENT, owner.0 as isize);
+
+            // Check if the owner window is topmost
+            let ex_style = GetWindowLongW(owner, GWL_EXSTYLE) as u32;
+            let owner_is_topmost = (ex_style & WS_EX_TOPMOST.0) != 0;
+
+            let insert_after = if owner_is_topmost {
+                HWND_TOPMOST
+            } else {
+                HWND_NOTOPMOST
+            };
+
+            // Set overlay topmost status to match the owner
+            let _ = SetWindowPos(
+                self.hwnd,
+                insert_after,
+                0,
+                0,
+                0,
+                0,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
+            );
         }
     }
 
@@ -244,6 +269,81 @@ impl Overlay {
         let cmd = if visible { SW_SHOW } else { SW_HIDE };
         unsafe {
             let _ = windows::Win32::UI::WindowsAndMessaging::ShowWindow(self.hwnd, cmd);
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use windows::Win32::UI::WindowsAndMessaging::{
+        CreateWindowExW, DestroyWindow, GWL_EXSTYLE, GetWindowLongW, HWND_TOPMOST, HWND_NOTOPMOST,
+        SetWindowPos, SWP_NOMOVE, SWP_NOSIZE, SWP_NOACTIVATE, WS_EX_TOPMOST, WS_POPUP,
+    };
+    use windows::core::w;
+
+    #[test]
+    fn test_overlay_topmost_sync() {
+        let overlay = Overlay::new().unwrap();
+
+        // Create a dummy window
+        let instance = unsafe { windows::Win32::System::LibraryLoader::GetModuleHandleW(None).unwrap() };
+        let hwnd_test = unsafe {
+            CreateWindowExW(
+                windows::Win32::UI::WindowsAndMessaging::WINDOW_EX_STYLE(0),
+                w!("STATIC"),
+                w!("Test Window"),
+                WS_POPUP,
+                0,
+                0,
+                100,
+                100,
+                None,
+                None,
+                instance,
+                None,
+            ).unwrap()
+        };
+
+        // Case 1: Test window is not topmost -> Overlay parent should not be topmost
+        overlay.set_owner(hwnd_test);
+        let ex_style = unsafe { GetWindowLongW(overlay.hwnd, GWL_EXSTYLE) as u32 };
+        assert_eq!(ex_style & WS_EX_TOPMOST.0, 0);
+
+        // Case 2: Make test window topmost -> Overlay should become topmost
+        unsafe {
+            let _ = SetWindowPos(
+                hwnd_test,
+                HWND_TOPMOST,
+                0,
+                0,
+                0,
+                0,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
+            );
+        }
+        overlay.set_owner(hwnd_test);
+        let ex_style_topmost = unsafe { GetWindowLongW(overlay.hwnd, GWL_EXSTYLE) as u32 };
+        assert_ne!(ex_style_topmost & WS_EX_TOPMOST.0, 0);
+
+        // Case 3: Make test window non-topmost -> Overlay should become non-topmost
+        unsafe {
+            let _ = SetWindowPos(
+                hwnd_test,
+                HWND_NOTOPMOST,
+                0,
+                0,
+                0,
+                0,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
+            );
+        }
+        overlay.set_owner(hwnd_test);
+        let ex_style_normal = unsafe { GetWindowLongW(overlay.hwnd, GWL_EXSTYLE) as u32 };
+        assert_eq!(ex_style_normal & WS_EX_TOPMOST.0, 0);
+
+        unsafe {
+            let _ = DestroyWindow(hwnd_test);
         }
     }
 }
