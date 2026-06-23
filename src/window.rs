@@ -164,32 +164,32 @@ pub fn is_taskbar_or_start_menu(hwnd: HWND) -> bool {
         let proc_lower = process_name.to_lowercase();
 
         // 1. Excluded Processes
-        let is_proc_excluded = match proc_lower.as_str() {
-            "startmenuexperiencehost.exe" | "searchhost.exe" | "shellexperiencehost.exe" => true,
-            _ => false,
-        };
+        let is_proc_excluded = matches!(
+            proc_lower.as_str(),
+            "startmenuexperiencehost.exe" | "searchhost.exe" | "shellexperiencehost.exe"
+        );
         if is_proc_excluded {
             return Some(("process", class_name, process_name));
         }
 
         // 2. Excluded Class Names
-        let is_class_excluded = match class_lower.as_str() {
+        let is_class_excluded = matches!(
+            class_lower.as_str(),
             "shell_traywnd"
-            | "shell_secondarytraywnd"
-            | "traynotifywnd"
-            | "notifyiconoverflowwindow"
-            | "trayclockwclass"
-            | "clockflyoutwindow"
-            | "controlcenterwindow"
-            | "shell_lightdismissoverlay"
-            | "progman"
-            | "workerw"
-            | "classicshell.cmenucontainer"
-            | "openshell.cmenucontainer"
-            | "dv2controlhost"
-            | "xamlexplorerhostislandwindow" => true,
-            _ => false,
-        };
+                | "shell_secondarytraywnd"
+                | "traynotifywnd"
+                | "notifyiconoverflowwindow"
+                | "trayclockwclass"
+                | "clockflyoutwindow"
+                | "controlcenterwindow"
+                | "shell_lightdismissoverlay"
+                | "progman"
+                | "workerw"
+                | "classicshell.cmenucontainer"
+                | "openshell.cmenucontainer"
+                | "dv2controlhost"
+                | "xamlexplorerhostislandwindow"
+        );
         if is_class_excluded {
             return Some(("class", class_name, process_name));
         }
@@ -215,7 +215,8 @@ pub fn is_taskbar_or_start_menu(hwnd: HWND) -> bool {
 
     // Evaluate root window if different
     if root_hwnd != hwnd {
-        if let Some((reason, class_name, process_name)) = check_window(root_hwnd) {
+        let root_check = check_window(root_hwnd);
+        if let Some((reason, class_name, process_name)) = root_check {
             println!(
                 "[Win-Glide] [Warning] Ignoring action because target root window is System UI: HWND={:?} (Root={:?}), Class={:?}, Process={:?}, Reason={}",
                 hwnd, root_hwnd, class_name, process_name, reason
