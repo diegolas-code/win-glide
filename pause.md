@@ -17,6 +17,13 @@
     - **Overlay Topmost Sync:** Dynamically sets the overlay window's Z-order style (`HWND_TOPMOST` / `HWND_NOTOPMOST`) to match the target window's topmost status, ensuring it renders on top of pinned topmost windows.
     - **Dynamic Console & Formatting Fix:** Added `Display` formatting to `HotkeyConfig` for printing active hotkeys dynamically. Configured main app console to output the centering hotkey (`Win+Alt+C` default) dynamically on startup. Resolved formatting-check errors by formatting files with `cargo fmt`.
 
+- **Phase 9b: System UI Exclusions (Completed)**
+    - **Recursive Ancestry climbing:** Traverses ancestors and owners to identify root window.
+    - **Process & Class Exclusion Whitelist:** Excludes Windows Taskbars, Start Menu, Desktop backgrounds, calendars, clocks, Action center, Quick Settings, and XAML containers.
+    - **Explorer UI Container Filtering:** Specifically blocks explorer-owned modern UI containers.
+    - **Glide and Center Protection:** Blocks both glide activation and one-shot centering operations on system UI elements, outputting warning logs.
+    - **Integration Test Coverage:** Validated the live exclusion checking mechanism using real system UI controls.
+
 ## Immediate Next Steps
 - **Phase 10: Productization (Queued Next)**
     - Create a release-optimized build profile.

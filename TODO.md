@@ -101,6 +101,16 @@
 - [x] Inform about the centering hotkey in the console output dynamically
 - [ ] Commit & Merge to dev
 
+## Phase 9b: System UI Exclusions
+- [x] Implement window ancestry & owner resolution (`get_root_window`)
+- [x] Implement excluded process matches (`startmenuexperiencehost.exe`, etc.)
+- [x] Implement excluded class name whitelist (`Shell_TrayWnd`, etc.)
+- [x] Filter explorer modern UI container classes
+- [x] Integrate exclusions into glide activation (`activate_session`)
+- [x] Integrate exclusions into window centering (`center_window`)
+- [x] Add unit/integration test `test_live_window_manager_is_taskbar_or_start_menu`
+- [ ] Commit & Merge to dev
+
 ## Phase 10: Productization (The Road to v1.0.0)
 - [ ] Create a release-optimized build profile
 - [ ] Implement a system tray icon for easy exit and status visibility
@@ -108,3 +118,4 @@
 - [ ] Final audit of the `config.json` schema for long-term stability
 - [ ] Finalize user documentation and version bump to v1.0.0
 - [ ] Commit & Merge to dev
+
