@@ -229,6 +229,10 @@ impl App {
                 return;
             }
 
+            if crate::window::is_taskbar_or_start_menu(hwnd) {
+                return;
+            }
+
             let mut rect = RECT::default();
             if GetWindowRect(hwnd, &mut rect).is_ok() {
                 let work_area = match Platform::get_nearest_monitor_work_area(hwnd) {
@@ -314,6 +318,10 @@ impl App {
                 println!(
                     "App: Cannot glide an elevated window (Access Denied). Run win-glide as Administrator to enable this."
                 );
+                return;
+            }
+
+            if crate::window::is_taskbar_or_start_menu(hwnd) {
                 return;
             }
 

@@ -74,6 +74,159 @@ pub fn is_window_elevated(hwnd: HWND) -> bool {
     }
 }
 
+/// Finds the absolute root window by climbing parent and owner windows.
+pub fn get_root_window(hwnd: HWND) -> HWND {
+    use windows::Win32::UI::WindowsAndMessaging::{GA_ROOTOWNER, GW_OWNER, GetAncestor, GetWindow};
+    unsafe {
+        let mut current = hwnd;
+        loop {
+            let ancestor = GetAncestor(current, GA_ROOTOWNER);
+            if !ancestor.is_invalid() && !ancestor.0.is_null() && ancestor != current {
+                current = ancestor;
+                continue;
+            }
+            let owner = GetWindow(current, GW_OWNER).unwrap_or_default();
+            if !owner.is_invalid() && !owner.0.is_null() && owner != current {
+                current = owner;
+                continue;
+            }
+            break;
+        }
+        current
+    }
+}
+
+/// Retrieves the class name of the given window.
+pub fn get_window_class_name(hwnd: HWND) -> Option<String> {
+    use windows::Win32::UI::WindowsAndMessaging::GetClassNameW;
+    let mut buffer = [0u16; 256];
+    unsafe {
+        let len = GetClassNameW(hwnd, &mut buffer);
+        if len > 0 {
+            Some(String::from_utf16_lossy(&buffer[..len as usize]))
+        } else {
+            None
+        }
+    }
+}
+
+/// Retrieves the image name of the process that owns the given window.
+pub fn get_window_process_name(hwnd: HWND) -> Option<String> {
+    use windows::Win32::Foundation::CloseHandle;
+    use windows::Win32::System::Threading::{
+        OpenProcess, PROCESS_NAME_WIN32, PROCESS_QUERY_LIMITED_INFORMATION,
+        QueryFullProcessImageNameW,
+    };
+    use windows::Win32::UI::WindowsAndMessaging::GetWindowThreadProcessId;
+
+    unsafe {
+        let mut pid: u32 = 0;
+        GetWindowThreadProcessId(hwnd, Some(&mut pid));
+        if pid == 0 {
+            return None;
+        }
+
+        let process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid).ok()?;
+        let mut buffer = [0u16; 1024];
+        let mut size = buffer.len() as u32;
+        let res = QueryFullProcessImageNameW(
+            process,
+            PROCESS_NAME_WIN32,
+            windows::core::PWSTR(buffer.as_mut_ptr()),
+            &mut size,
+        );
+        let _ = CloseHandle(process);
+
+        if res.is_ok() && size > 0 {
+            let path = String::from_utf16_lossy(&buffer[..size as usize]);
+            if let Some(file_name) = std::path::Path::new(&path).file_name() {
+                return file_name.to_str().map(|s| s.to_string());
+            }
+        }
+        None
+    }
+}
+
+/// Checks if a window is a Windows taskbar, Start Menu, or other core shell UI component
+/// that should be excluded from glide or centering operations.
+pub fn is_taskbar_or_start_menu(hwnd: HWND) -> bool {
+    if hwnd.is_invalid() || hwnd.0.is_null() {
+        return false;
+    }
+
+    let root_hwnd = get_root_window(hwnd);
+
+    let check_window = |h: HWND| -> Option<(&'static str, String, String)> {
+        let class_name = get_window_class_name(h)?;
+        let process_name = get_window_process_name(h).unwrap_or_default();
+
+        let class_lower = class_name.to_lowercase();
+        let proc_lower = process_name.to_lowercase();
+
+        // 1. Excluded Processes
+        let is_proc_excluded = match proc_lower.as_str() {
+            "startmenuexperiencehost.exe" | "searchhost.exe" | "shellexperiencehost.exe" => true,
+            _ => false,
+        };
+        if is_proc_excluded {
+            return Some(("process", class_name, process_name));
+        }
+
+        // 2. Excluded Class Names
+        let is_class_excluded = match class_lower.as_str() {
+            "shell_traywnd"
+            | "shell_secondarytraywnd"
+            | "traynotifywnd"
+            | "notifyiconoverflowwindow"
+            | "trayclockwclass"
+            | "clockflyoutwindow"
+            | "controlcenterwindow"
+            | "shell_lightdismissoverlay"
+            | "progman"
+            | "workerw"
+            | "classicshell.cmenucontainer"
+            | "openshell.cmenucontainer"
+            | "dv2controlhost"
+            | "xamlexplorerhostislandwindow" => true,
+            _ => false,
+        };
+        if is_class_excluded {
+            return Some(("class", class_name, process_name));
+        }
+
+        // 3. Explorer Modern UI Containers (explorer.exe + specific class)
+        if proc_lower == "explorer.exe"
+            && (class_lower == "windows.ui.core.corewindow" || class_lower == "nativehwndhost")
+        {
+            return Some(("explorer_ui", class_name, process_name));
+        }
+
+        None
+    };
+
+    // Evaluate active window
+    if let Some((reason, class_name, process_name)) = check_window(hwnd) {
+        println!(
+            "[Win-Glide] [Warning] Ignoring action because target window is System UI: HWND={:?}, Class={:?}, Process={:?}, Root={:?}, Reason={}",
+            hwnd, class_name, process_name, root_hwnd, reason
+        );
+        return true;
+    }
+
+    // Evaluate root window if different
+    if root_hwnd != hwnd {
+        if let Some((reason, class_name, process_name)) = check_window(root_hwnd) {
+            println!(
+                "[Win-Glide] [Warning] Ignoring action because target root window is System UI: HWND={:?} (Root={:?}), Class={:?}, Process={:?}, Reason={}",
+                hwnd, root_hwnd, class_name, process_name, reason
+            );
+            return true;
+        }
+    }
+
+    false
+}
+
 /// Computes the centered position of a window inside the monitor work area,
 /// resizing (shrinking) the window if its dimensions exceed the work area.
 pub fn calculate_centered_rect(window_rect: RECT, work_area: RECT) -> RECT {
@@ -156,5 +309,26 @@ mod tests {
         assert_eq!(result_wide.top, 300);
         assert_eq!(result_wide.right, 1000);
         assert_eq!(result_wide.bottom, 700);
+    }
+
+    #[test]
+    fn test_live_window_manager_is_taskbar_or_start_menu() {
+        use windows::Win32::UI::WindowsAndMessaging::FindWindowW;
+        use windows::core::w;
+
+        // Verify invalid/null handles are not classified as taskbar/startmenu
+        assert!(!is_taskbar_or_start_menu(HWND::default()));
+
+        // Try to find the system taskbar
+        let taskbar_hwnd = unsafe { FindWindowW(w!("Shell_TrayWnd"), None).unwrap_or_default() };
+        if !taskbar_hwnd.is_invalid() && !taskbar_hwnd.0.is_null() {
+            assert!(is_taskbar_or_start_menu(taskbar_hwnd));
+        }
+
+        // Try to find the desktop window (Progman or WorkerW)
+        let progman_hwnd = unsafe { FindWindowW(w!("Progman"), None).unwrap_or_default() };
+        if !progman_hwnd.is_invalid() && !progman_hwnd.0.is_null() {
+            assert!(is_taskbar_or_start_menu(progman_hwnd));
+        }
     }
 }
