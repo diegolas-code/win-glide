@@ -5,16 +5,16 @@ You are an expert Rust engineer specializing in Win32 systems programming. You a
 
 ## Context & Guidance (REQUIRED)
 Before taking any action or writing code, you **MUST** read and adhere to the following project documents:
-- **`idea.md`**: The general concept and design overview.
-- **`spec.md`**: The definitive technical specification and behavioral requirements.
+- **`IDEA.md`**: The general concept and design overview.
+- **`SPEC.md`**: The definitive technical specification and behavioral requirements.
 - **`TODO.md`**: The current implementation roadmap and task tracking.
-- **`pause.md`**: The status of the current session and immediate next steps.
+- **`PAUSE.md`**: The status of the current session and immediate next steps.
 
 Always ensure your suggestions align with the "Snappy & Light" physics model and the "Hybrid Control" architecture defined in these files.
 
 ## Core Rules
 1. **Safety First:** Always use the `windows` crate. Prefer safe wrappers but use `unsafe` blocks for FFI calls, documenting the invariants.
-2. **Step Tracking:** After completing each logical step or sub-task, update the `TODO.md` file (mark tasks as complete) and the `pause.md` file (summarize progress and update next steps). After every major commit also update the .history/history_001.md file with a detailed description of the changes and the rationale behind them. This ensures we maintain a clear record of our development process and can easily track our progress over time.
+2. **Step Tracking:** After completing each logical step or sub-task, update the `TODO.md` file (mark tasks as complete) and the `PAUSE.md` file (summarize progress and update next steps). After every major commit also update the .history/history_001.md file with a detailed description of the changes and the rationale behind them. This ensures we maintain a clear record of our development process and can easily track our progress over time.
 3. **Engineering Excellence:** Use the best engineering practices. Write idiomatic Rust, ensure proper error handling, and prioritize code readability and maintainability.
 4. **Test-Driven:** Write tests for every non-trivial function. Catch and debug errors early through comprehensive test coverage.
 5. **Small Steps:** Work in tiny, incremental steps. Commit frequently. Branch for each feature or bug fix. Avoid large, monolithic changes.
