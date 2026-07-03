@@ -54,6 +54,10 @@ pub struct App {
     last_sent_rect: RECT,
     /// Set of keys currently held down.
     pressed_keys: HashSet<u32>,
+    /// Dynamically detected minimum width constraint of the active target window.
+    detected_min_w: Option<f32>,
+    /// Dynamically detected minimum height constraint of the active target window.
+    detected_min_h: Option<f32>,
     /// Flag to keep the main loop running.
     running: bool,
 }
@@ -82,6 +86,8 @@ impl App {
             overlay: Overlay::new().expect("Failed to create Overlay"),
             last_sent_rect: RECT::default(),
             pressed_keys: HashSet::new(),
+            detected_min_w: None,
+            detected_min_h: None,
             running: true,
         }
     }
@@ -114,6 +120,11 @@ impl App {
                     // Zero out translation velocity to prevent drift during resizing actions
                     self.physics.velocity = Vector2D::default();
                 } else {
+                    // Reset dynamic minimum bounds constraints when resize is inactive
+                    if self.detected_min_w.is_some() || self.detected_min_h.is_some() {
+                        self.detected_min_w = None;
+                        self.detected_min_h = None;
+                    }
                     let is_thrusting = self.apply_thrust(dt);
                     self.update(dt, is_thrusting);
                     self.apply_movement(dt);
@@ -375,6 +386,8 @@ impl App {
                     self.width_f32 = (rect.right - rect.left) as f32;
                     self.height_f32 = (rect.bottom - rect.top) as f32;
                     self.dpi = Platform::get_dpi_for_window(hwnd);
+                    self.detected_min_w = None;
+                    self.detected_min_h = None;
 
                     // Tell the input hooks to start intercepting/modifying input.
                     crate::input::set_session_active(true);
@@ -406,6 +419,8 @@ impl App {
         self.physics.velocity = Vector2D::default();
         self.pressed_keys.clear();
         self.overlay.show(false);
+        self.detected_min_w = None;
+        self.detected_min_h = None;
     }
 
     /// Converts held keys into a thrust vector.
@@ -533,6 +548,22 @@ impl App {
             None => return,
         };
 
+        // Query the target window's ACTUAL current dimensions to use as a baseline.
+        // This prevents prediction drift when sizing constraints are active.
+        let mut actual_rect = RECT::default();
+        let (current_x, current_y, current_w, current_h) = unsafe {
+            if GetWindowRect(hwnd, &mut actual_rect).is_ok() {
+                (
+                    actual_rect.left as f32,
+                    actual_rect.top as f32,
+                    (actual_rect.right - actual_rect.left) as f32,
+                    (actual_rect.bottom - actual_rect.top) as f32,
+                )
+            } else {
+                (self.pos_x, self.pos_y, self.width_f32, self.height_f32)
+            }
+        };
+
         // Determine step size based on configured resize_speed
         // Default: 600.0 / 12.0 = 50.0 pixels
         let step = (self.resize_speed / 12.0).round().max(10.0);
@@ -551,11 +582,11 @@ impl App {
         let work_area = Platform::get_nearest_monitor_work_area(hwnd).unwrap_or_default();
         let vs = Platform::get_virtual_screen_rect();
 
-        let (new_x, new_y, new_w, new_h) = crate::window::calculate_resized_rect(
-            self.pos_x,
-            self.pos_y,
-            self.width_f32,
-            self.height_f32,
+        let (mut new_x, mut new_y, mut new_w, mut new_h) = crate::window::calculate_resized_rect(
+            current_x,
+            current_y,
+            current_w,
+            current_h,
             is_shift_down,
             is_alt_down,
             dx,
@@ -564,6 +595,28 @@ impl App {
             work_area,
             vs,
         );
+
+        // Clamp to dynamically detected application sizing limits
+        if is_alt_down {
+            if let Some(min_w) = self.detected_min_w {
+                if new_w < min_w {
+                    new_w = min_w;
+                    // Shrink from Left: adjust position to keep right edge stationary
+                    if dx > 0.0 {
+                        new_x = current_x + current_w - new_w;
+                    }
+                }
+            }
+            if let Some(min_h) = self.detected_min_h {
+                if new_h < min_h {
+                    new_h = min_h;
+                    // Shrink from Top: adjust position to keep bottom edge stationary
+                    if dy > 0.0 {
+                        new_y = current_y + current_h - new_h;
+                    }
+                }
+            }
+        }
 
         let new_rect = RECT {
             left: new_x.round() as i32,
@@ -648,21 +701,35 @@ impl App {
 
                     if is_alt_down {
                         // Left/Right/Up/Down Arrow keys pressed?
+                        let left_pressed = GetAsyncKeyState(0x25) as u16 & 0x8000 != 0;
+                        let up_pressed = GetAsyncKeyState(0x26) as u16 & 0x8000 != 0;
                         let right_pressed = GetAsyncKeyState(0x27) as u16 & 0x8000 != 0;
                         let down_pressed = GetAsyncKeyState(0x28) as u16 & 0x8000 != 0;
 
-                        if right_pressed {
-                            // Shrink from Left: right edge should stay at old_rect.right.
-                            // If actual width is larger than expected, correct the left coordinate.
+                        if left_pressed {
+                            // Shrink from Right: left edge should remain stationary at old_rect.left.
+                            if actual_rect.left != old_rect.left {
+                                corrected_rect.left = old_rect.left;
+                                corrected_rect.right = old_rect.left + actual_w;
+                                needs_correction = true;
+                            }
+                        } else if right_pressed {
+                            // Shrink from Left: right edge should remain stationary at old_rect.right.
                             let corrected_left = old_rect.right - actual_w;
                             if actual_rect.left != corrected_left {
                                 corrected_rect.left = corrected_left;
                                 corrected_rect.right = old_rect.right;
                                 needs_correction = true;
                             }
+                        } else if up_pressed {
+                            // Shrink from Bottom: top edge should remain stationary at old_rect.top.
+                            if actual_rect.top != old_rect.top {
+                                corrected_rect.top = old_rect.top;
+                                corrected_rect.bottom = old_rect.top + actual_h;
+                                needs_correction = true;
+                            }
                         } else if down_pressed {
-                            // Shrink from Top: bottom edge should stay at old_rect.bottom.
-                            // If actual height is larger than expected, correct the top coordinate.
+                            // Shrink from Top: bottom edge should remain stationary at old_rect.bottom.
                             let corrected_top = old_rect.bottom - actual_h;
                             if actual_rect.top != corrected_top {
                                 corrected_rect.top = corrected_top;
@@ -670,6 +737,16 @@ impl App {
                                 needs_correction = true;
                             }
                         }
+                    }
+
+                    // Dynamically cache detected minimum bounds constraints if actual size is larger than expected size
+                    let expected_w = old_rect.right - old_rect.left;
+                    let expected_h = old_rect.bottom - old_rect.top;
+                    if actual_w > expected_w {
+                        self.detected_min_w = Some(actual_w as f32);
+                    }
+                    if actual_h > expected_h {
+                        self.detected_min_h = Some(actual_h as f32);
                     }
 
                     if needs_correction {
