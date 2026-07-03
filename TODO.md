@@ -129,6 +129,7 @@
 - [x] Optimize Win32 sizing flags (remove SWP_NOCOPYBITS) to eliminate rendering blockiness and maintain compatibility
 - [x] Implement discrete-step resizing triggered by KeyDown events to maximize snappiness and eliminate layout stutters
 - [x] Implement overlay synchronization and position correction via 120Hz background monitoring to respect target window minimum sizes and prevent position shifting
+- [x] Implement coordinated layout updates via DeferWindowPos during discrete resizing to eliminate visual dragging lag
 - [ ] Commit & Merge to dev
 
 ## Phase 11: Productization (The Road to v1.0.0)
