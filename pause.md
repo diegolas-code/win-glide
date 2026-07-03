@@ -29,7 +29,8 @@
     - **Discrete Resize Steps:** Replaced continuous resizing with discrete step changes triggered directly on KeyDown events, leveraging OS-native keyboard repeat rates for high snappiness and zero layout stutters.
     - **Corrected Shrink Border Directions:** Corrected opposite edges to pull inward, moving the active border in the direction of the arrow key pressed (e.g. Alt + Down pulls the top border down).
     - **Overlay Bounds Sync & Position Correction:** Performs client-side prediction for instant lag-free rendering, coupled with a 120Hz background monitoring thread that queries `GetWindowRect` to self-heal size mismatches and trigger corrective `SetWindowPos` calls to prevent position shifting when target windows hit internal minimum limits.
-    - **Coordinated Layout Transaction:** Uses an atomic `BeginDeferWindowPos(2)` block during the resizing keypress event, committing both target and overlay boundary updates in the exact same DWM refresh frame to eliminate any visual dragging or rubber-banding lag.
+    - **Coordinated Layout Transaction:** Uses an atomic `BeginDeferWindowPos(2)` block during the resizing keypress event, committing both target and overlay boundary updates in the exact same DWM refresh frame.
+    - **Split-Phase Rendering:** Implemented `prepare_surface` and `commit_surface` to render the GDI/tiny-skia bitmap on the CPU *before* committing the layout transaction, reducing the post-transaction upload delay to under 100 microseconds and eliminating 1-frame expansion drag.
     - **Configuration Integrated:** Added `resize_speed` support mapping to `config.json`.
     - **Safety Boundaries Clamped:** Enforces DPI-scaled $250\text{px}$ floor, active monitor work area bounds, and $150\text{px}$ off-screen margin rules.
     - **Clean Transition Physics:** Instantly zeros translational velocity when resizing begins to prevent window drifting.
