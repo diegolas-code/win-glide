@@ -25,13 +25,15 @@
     - **Integration Test Coverage:** Validated the live exclusion checking mechanism using real system UI controls.
 
 - **Phase 11: Keyboard-Driven Window Resizing (Completed)**
-    - **Control Scheme Implemented:** Arrow key movement modified by absolute modifier mapping (`Alt` to grow, `Shift` to shrink).
+    - **Control Scheme Implemented:** Swapped modifiers to use `Shift` to grow/expand, and `Alt` to shrink/reduce.
+    - **Continuous Resize Physics:** Replaced step-based resizing with a dedicated scaled `resize_physics` simulation that applies continuous thrust and decay.
+    - **Corrected Shrink Border Directions:** Corrected opposite edges to pull inward, moving the active border in the direction of the arrow key pressed (e.g. Alt + Down pulls the top border down).
     - **Configuration Integrated:** Added `resize_speed` support mapping to `config.json`.
     - **High-Precision Sizing State:** Implemented fractional accumulators (`width_f32`, `height_f32`) to keep dimensions robust and frame-rate independent.
     - **Glide Handoff:** Instantly zeros translational velocity when a resize combination starts to prevent drift.
     - **Safety Boundaries Clamped:** Enforces DPI-scaled $250\text{px}$ floor, active monitor work area bounds, and $150\text{px}$ off-screen margin rules.
     - **Overlay Synchronization Optimization:** Coordinated single-transaction layout update (`BeginDeferWindowPos`) and conditional redraw optimization to avoid GDI/DIB reallocation overhead.
-    - **Unit Tests Written:** Fully validated resizing coordinate math and clamping limits under multiple mock monitors and modifiers.
+    - **Unit Tests Written:** Fully validated resizing coordinate math, deltas, and clamping limits under multiple mock monitors and modifiers.
 
 ## Immediate Next Steps
 - **Phase 12: Productization (The Road to v1.0.0)**

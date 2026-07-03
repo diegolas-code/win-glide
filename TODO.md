@@ -122,6 +122,9 @@
 - [x] Integrate coordinated window and overlay movement via a single `BeginDeferWindowPos` transaction
 - [x] Optimize overlay re-rendering to only call `Overlay::redraw` when integer size dimensions change
 - [x] Write unit tests for coordinate resizing calculations and integration tests for overlay-resizing alignment
+- [x] Implement swapped resizing modifiers: Shift to expand, Alt to shrink
+- [x] Implement corrected shrink edge directions (pulling opposite edge)
+- [x] Implement continuous momentum-based resize physics state
 - [ ] Commit & Merge to dev
 
 ## Phase 11: Productization (The Road to v1.0.0)
