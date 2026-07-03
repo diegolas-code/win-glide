@@ -111,15 +111,7 @@
 - [x] Add unit/integration test `test_live_window_manager_is_taskbar_or_start_menu`
 - [ ] Commit & Merge to dev
 
-## Phase 10: Productization (The Road to v1.0.0)
-- [ ] Create a release-optimized build profile
-- [ ] Implement a system tray icon for easy exit and status visibility
-- [ ] Research and implement a simple installer (e.g., Inno Setup or a WiX-based MSI)
-- [ ] Final audit of the `config.json` schema for long-term stability
-- [ ] Finalize user documentation and version bump to v1.0.0
-- [ ] Commit & Merge to dev
-
-## Phase 11: Keyboard-Driven Window Resizing
+## Phase 10: Keyboard-Driven Window Resizing
 - [ ] Configure keyboard hook `keyboard_proc` in `src/input.rs` to allow `VK_MENU` and `VK_SHIFT` to pass through, keeping arrow key consumption active during active sessions
 - [ ] Add `resize_speed: f32` to the `Config` struct in `src/config.rs` and load it from `config.json` (default `600.0` px/s)
 - [ ] Add `width_f32` and `height_f32` accumulators to `App` in `src/app.rs` and initialize them on session activation
@@ -130,6 +122,14 @@
 - [ ] Integrate coordinated window and overlay movement via a single `BeginDeferWindowPos` transaction
 - [ ] Optimize overlay re-rendering to only call `Overlay::redraw` when integer size dimensions change
 - [ ] Write unit tests for coordinate resizing calculations and integration tests for overlay-resizing alignment
+- [ ] Commit & Merge to dev
+
+## Phase 11: Productization (The Road to v1.0.0)
+- [ ] Create a release-optimized build profile
+- [ ] Implement a system tray icon for easy exit and status visibility
+- [ ] Research and implement a simple installer (e.g., Inno Setup or a WiX-based MSI)
+- [ ] Final audit of the `config.json` schema for long-term stability
+- [ ] Finalize user documentation and version bump to v1.0.0
 - [ ] Commit & Merge to dev
 
 
