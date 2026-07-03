@@ -17,7 +17,7 @@ use windows::Win32::Foundation::{HWND, RECT};
 use windows::Win32::UI::Input::KeyboardAndMouse::{GetAsyncKeyState, VK_MENU, VK_SHIFT};
 use windows::Win32::UI::WindowsAndMessaging::{
     BeginDeferWindowPos, DeferWindowPos, EndDeferWindowPos, GetWindowRect, IsZoomed,
-    SWP_NOACTIVATE, SWP_NOCOPYBITS, SWP_NOSIZE, SWP_NOZORDER, SWP_NOSENDCHANGING, SetWindowPos,
+    SWP_NOACTIVATE, SWP_NOCOPYBITS, SWP_NOSIZE, SWP_NOZORDER, SetWindowPos,
 };
 
 /// The central application controller.
@@ -645,7 +645,7 @@ impl App {
                         new_rect.top,
                         new_rect.right - new_rect.left,
                         new_rect.bottom - new_rect.top,
-                        SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOSENDCHANGING,
+                        SWP_NOACTIVATE | SWP_NOZORDER,
                     ) {
                         hdwp = h;
                     }
