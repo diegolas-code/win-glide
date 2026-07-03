@@ -17,7 +17,7 @@ use windows::Win32::Foundation::{HWND, RECT};
 use windows::Win32::UI::Input::KeyboardAndMouse::{GetAsyncKeyState, VK_MENU, VK_SHIFT};
 use windows::Win32::UI::WindowsAndMessaging::{
     BeginDeferWindowPos, DeferWindowPos, EndDeferWindowPos, GetWindowRect, IsZoomed,
-    SWP_NOACTIVATE, SWP_NOCOPYBITS, SWP_NOSIZE, SWP_NOZORDER, SetWindowPos,
+    SWP_NOACTIVATE, SWP_NOCOPYBITS, SWP_NOSIZE, SWP_NOZORDER, SWP_NOSENDCHANGING, SetWindowPos,
 };
 
 /// The central application controller.
@@ -54,6 +54,8 @@ pub struct App {
     last_sent_rect: RECT,
     /// Set of keys currently held down.
     pressed_keys: HashSet<u32>,
+    /// Accumulated dt specifically for throttling window resize API calls.
+    resize_accumulated_dt: f32,
     /// Flag to keep the main loop running.
     running: bool,
 }
@@ -90,6 +92,7 @@ impl App {
             overlay: Overlay::new().expect("Failed to create Overlay"),
             last_sent_rect: RECT::default(),
             pressed_keys: HashSet::new(),
+            resize_accumulated_dt: 0.0,
             running: true,
         }
     }
@@ -537,6 +540,7 @@ impl App {
         if !is_resizing {
             // Reset resize physics velocity immediately when resizing is inactive to prevent sliding
             self.resize_physics.velocity = Vector2D::default();
+            self.resize_accumulated_dt = 0.0;
             return false;
         }
 
@@ -567,12 +571,23 @@ impl App {
             self.resize_physics.apply_thrust(thrust, dt);
         }
 
-        // Update resize physics (apply friction)
+        // Update resize physics (apply friction) at full loop rate (120Hz)
         let is_thrusting = thrust.x != 0.0 || thrust.y != 0.0;
         self.resize_physics.update(dt, is_thrusting);
 
-        let dx = self.resize_physics.velocity.x * dt;
-        let dy = self.resize_physics.velocity.y * dt;
+        // Accumulate time for layout update throttling
+        self.resize_accumulated_dt += dt;
+
+        // Throttle actual window resizing API calls to ~60Hz to prevent thread choking on target windows.
+        if self.resize_accumulated_dt < 0.016 {
+            return true;
+        }
+
+        let layout_dt = self.resize_accumulated_dt;
+        self.resize_accumulated_dt = 0.0;
+
+        let dx = self.resize_physics.velocity.x * layout_dt;
+        let dy = self.resize_physics.velocity.y * layout_dt;
 
         let work_area = Platform::get_nearest_monitor_work_area(hwnd).unwrap_or_default();
         let vs = Platform::get_virtual_screen_rect();
@@ -621,7 +636,7 @@ impl App {
                 if let Ok(hdwp) = BeginDeferWindowPos(hdwp_count) {
                     let mut hdwp = hdwp;
 
-                    // Move/Resize target window
+                    // Move/Resize target window (Omit SWP_NOCOPYBITS to allow smooth copy blits; add SWP_NOSENDCHANGING to skip delay)
                     if let Ok(h) = DeferWindowPos(
                         hdwp,
                         hwnd,
@@ -630,7 +645,7 @@ impl App {
                         new_rect.top,
                         new_rect.right - new_rect.left,
                         new_rect.bottom - new_rect.top,
-                        SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOCOPYBITS,
+                        SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOSENDCHANGING,
                     ) {
                         hdwp = h;
                     }
