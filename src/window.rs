@@ -251,19 +251,16 @@ pub fn calculate_centered_rect(window_rect: RECT, work_area: RECT) -> RECT {
 }
 
 /// Computes the resized position and dimensions of a window based on modifier states,
-/// arrow keys, step size, and DPI, clamping to safety boundaries (min size, work area limits, visibility).
+/// continuous physics deltas (dx, dy), and DPI, clamping to safety boundaries (min size, work area limits, visibility).
 pub fn calculate_resized_rect(
     current_x: f32,
     current_y: f32,
     current_w: f32,
     current_h: f32,
-    is_alt_down: bool,
     is_shift_down: bool,
-    left_pressed: bool,
-    right_pressed: bool,
-    up_pressed: bool,
-    down_pressed: bool,
-    step: f32,
+    is_alt_down: bool,
+    dx: f32,
+    dy: f32,
     dpi: u32,
     work_area: RECT,
     vs: RECT,
@@ -273,35 +270,35 @@ pub fn calculate_resized_rect(
     let mut new_w = current_w;
     let mut new_h = current_h;
 
-    if is_alt_down && !is_shift_down {
-        if left_pressed {
-            new_x -= step;
-            new_w += step;
+    if is_shift_down && !is_alt_down {
+        // Expand (Grow)
+        if dx > 0.0 {
+            new_w += dx;
+        } else if dx < 0.0 {
+            new_x += dx;
+            new_w -= dx;
         }
-        if right_pressed {
-            new_w += step;
+
+        if dy > 0.0 {
+            new_h += dy;
+        } else if dy < 0.0 {
+            new_y += dy;
+            new_h -= dy;
         }
-        if up_pressed {
-            new_y -= step;
-            new_h += step;
+    } else if is_alt_down && !is_shift_down {
+        // Shrink (Reduce)
+        if dx > 0.0 {
+            new_x += dx;
+            new_w -= dx;
+        } else if dx < 0.0 {
+            new_w += dx;
         }
-        if down_pressed {
-            new_h += step;
-        }
-    } else if is_shift_down && !is_alt_down {
-        if left_pressed {
-            new_x += step;
-            new_w -= step;
-        }
-        if right_pressed {
-            new_w -= step;
-        }
-        if up_pressed {
-            new_y += step;
-            new_h -= step;
-        }
-        if down_pressed {
-            new_h -= step;
+
+        if dy > 0.0 {
+            new_y += dy;
+            new_h -= dy;
+        } else if dy < 0.0 {
+            new_h += dy;
         }
     }
 
@@ -311,20 +308,22 @@ pub fn calculate_resized_rect(
     let min_h = 250.0 * scale_factor;
 
     if new_w < min_w {
-        if is_shift_down && left_pressed {
+        if is_alt_down && dx > 0.0 {
+            // Shrunk from Left, adjust pos_x to preserve right edge
             new_x = current_x + current_w - min_w;
         }
         new_w = min_w;
     }
     if new_h < min_h {
-        if is_shift_down && up_pressed {
+        if is_alt_down && dy > 0.0 {
+            // Shrunk from Top, adjust pos_y to preserve bottom edge
             new_y = current_y + current_h - min_h;
         }
         new_h = min_h;
     }
 
-    // 2. Monitor Work Area Boundary (Only for Alt-Expansion)
-    if is_alt_down && !is_shift_down {
+    // 2. Monitor Work Area Boundary (Only for Shift-Expansion)
+    if is_shift_down && !is_alt_down {
         if new_x < work_area.left as f32 {
             new_x = work_area.left as f32;
             new_w = (current_x + current_w) - new_x;
@@ -446,42 +445,42 @@ mod tests {
         let work_area = RECT { left: 0, top: 0, right: 1000, bottom: 1000 };
         let vs = RECT { left: -5000, top: -5000, right: 5000, bottom: 5000 };
 
-        // Test Alt + Right (Expand Right)
+        // Test Shift + Right (Expand Right, dx > 0)
         let (x, _y, w, _h) = calculate_resized_rect(
             100.0, 100.0, 300.0, 300.0,
-            true, false,
-            false, true, false, false,
-            50.0, 96, work_area, vs
+            true, false, // is_shift_down, is_alt_down
+            50.0, 0.0, // dx, dy
+            96, work_area, vs
         );
         assert_eq!(x, 100.0);
         assert_eq!(w, 350.0);
 
-        // Test Alt + Left (Expand Left)
+        // Test Shift + Left (Expand Left, dx < 0)
         let (x, _y, w, _h) = calculate_resized_rect(
             100.0, 100.0, 300.0, 300.0,
             true, false,
-            true, false, false, false,
-            50.0, 96, work_area, vs
+            -50.0, 0.0,
+            96, work_area, vs
         );
         assert_eq!(x, 50.0);
         assert_eq!(w, 350.0);
 
-        // Test Shift + Right (Shrink Right)
+        // Test Alt + Right (Shrink Left edge rightwards, dx > 0)
         let (x, _y, w, _h) = calculate_resized_rect(
             100.0, 100.0, 300.0, 300.0,
             false, true,
-            false, true, false, false,
-            50.0, 96, work_area, vs
+            50.0, 0.0,
+            96, work_area, vs
         );
-        assert_eq!(x, 100.0);
+        assert_eq!(x, 150.0);
         assert_eq!(w, 250.0);
 
-        // Test Shift + Right clamp at Min Size (250px)
+        // Test Alt + Left (Shrink Right edge leftwards, dx < 0)
         let (x, _y, w, _h) = calculate_resized_rect(
-            100.0, 100.0, 260.0, 300.0,
+            100.0, 100.0, 300.0, 300.0,
             false, true,
-            false, true, false, false,
-            20.0, 96, work_area, vs
+            -50.0, 0.0,
+            96, work_area, vs
         );
         assert_eq!(x, 100.0);
         assert_eq!(w, 250.0);
