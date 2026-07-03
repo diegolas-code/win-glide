@@ -14,6 +14,7 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use windows::Win32::Foundation::{HWND, RECT};
+use windows::Win32::UI::Input::KeyboardAndMouse::{GetAsyncKeyState, VK_MENU, VK_SHIFT};
 use windows::Win32::UI::WindowsAndMessaging::{
     BeginDeferWindowPos, DeferWindowPos, EndDeferWindowPos, GetWindowRect, IsZoomed,
     SWP_NOACTIVATE, SWP_NOCOPYBITS, SWP_NOSIZE, SWP_NOZORDER, SetWindowPos,
@@ -107,9 +108,12 @@ impl App {
 
             // If a session is active, perform the physics and movement update.
             if self.active_window.is_some() {
-                let is_thrusting = self.apply_thrust(dt);
-                self.update(dt, is_thrusting);
-                self.apply_movement(dt);
+                let is_resizing = self.process_resize(dt);
+                if !is_resizing {
+                    let is_thrusting = self.apply_thrust(dt);
+                    self.update(dt, is_thrusting);
+                    self.apply_movement(dt);
+                }
             }
 
             // Cap the frame rate.
@@ -499,5 +503,115 @@ impl App {
                 }
             }
         }
+    }
+
+    /// Checks for resize modifiers and active arrow keys.
+    /// If resizing is active, computes the new coordinates, zeros momentum,
+    /// performs safety bounds, and updates the window layout in a single transaction.
+    fn process_resize(&mut self, dt: f32) -> bool {
+        let hwnd = match self.active_window {
+            Some(h) => h,
+            None => return false,
+        };
+
+        let is_alt_down = unsafe { GetAsyncKeyState(VK_MENU.0 as i32) } as u16 & 0x8000 != 0;
+        let is_shift_down = unsafe { GetAsyncKeyState(VK_SHIFT.0 as i32) } as u16 & 0x8000 != 0;
+
+        let left_pressed = self.pressed_keys.contains(&0x25);
+        let up_pressed = self.pressed_keys.contains(&0x26);
+        let right_pressed = self.pressed_keys.contains(&0x27);
+        let down_pressed = self.pressed_keys.contains(&0x28);
+
+        let has_arrow_pressed = left_pressed || up_pressed || right_pressed || down_pressed;
+        let is_resizing = (is_alt_down || is_shift_down) && has_arrow_pressed;
+
+        if !is_resizing {
+            return false;
+        }
+
+        // Handoff logic: zero out translation velocity immediately when resizing
+        self.physics.velocity = Vector2D::default();
+
+        let step = self.resize_speed * dt;
+        let work_area = Platform::get_nearest_monitor_work_area(hwnd).unwrap_or_default();
+        let vs = Platform::get_virtual_screen_rect();
+
+        let (new_x, new_y, new_w, new_h) = crate::window::calculate_resized_rect(
+            self.pos_x,
+            self.pos_y,
+            self.width_f32,
+            self.height_f32,
+            is_alt_down,
+            is_shift_down,
+            left_pressed,
+            right_pressed,
+            up_pressed,
+            down_pressed,
+            step,
+            self.dpi,
+            work_area,
+            vs,
+        );
+
+        self.pos_x = new_x;
+        self.pos_y = new_y;
+        self.width_f32 = new_w;
+        self.height_f32 = new_h;
+
+        let new_rect = RECT {
+            left: new_x.round() as i32,
+            top: new_y.round() as i32,
+            right: (new_x + new_w).round() as i32,
+            bottom: (new_y + new_h).round() as i32,
+        };
+
+        let old_rect = self.window_rect;
+        self.window_rect = new_rect;
+
+        let width_changed = (new_rect.right - new_rect.left) != (old_rect.right - old_rect.left);
+        let height_changed = (new_rect.bottom - new_rect.top) != (old_rect.bottom - old_rect.top);
+        let size_changed = width_changed || height_changed;
+
+        // Optimization: Only call Win32 movement APIs if the integer position/size changed.
+        if new_rect.left != self.last_sent_rect.left
+            || new_rect.top != self.last_sent_rect.top
+            || new_rect.right != self.last_sent_rect.right
+            || new_rect.bottom != self.last_sent_rect.bottom
+        {
+            unsafe {
+                if let Ok(hdwp) = BeginDeferWindowPos(2) {
+                    let mut hdwp = hdwp;
+
+                    // Move/Resize target window
+                    if let Ok(h) = DeferWindowPos(
+                        hdwp,
+                        hwnd,
+                        HWND::default(),
+                        new_rect.left,
+                        new_rect.top,
+                        new_rect.right - new_rect.left,
+                        new_rect.bottom - new_rect.top,
+                        SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOCOPYBITS,
+                    ) {
+                        hdwp = h;
+                    }
+
+                    // Move/Resize overlay to match
+                    if let Ok(h) = self.overlay.defer_update_position(hdwp, self.window_rect) {
+                        hdwp = h;
+                    }
+
+                    let _ = EndDeferWindowPos(hdwp);
+                    self.last_sent_rect = new_rect;
+                }
+            }
+
+            // Redraw overlay bitmap content only when integer size changes
+            if size_changed {
+                let _ = self.overlay.redraw(self.window_rect);
+            }
+        }
+
+        true
     }
 }
