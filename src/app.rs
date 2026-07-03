@@ -572,6 +572,9 @@ impl App {
             bottom: (new_y + new_h).round() as i32,
         };
 
+        // Pre-render the overlay content on the CPU BEFORE the DWM commit transaction
+        let prepared_surface = self.overlay.prepare_surface(new_rect);
+
         // Apply changes to target window and overlay in a single atomic transaction
         // (Omit SWP_NOCOPYBITS to allow smooth copy blits)
         unsafe {
@@ -609,7 +612,10 @@ impl App {
         self.height_f32 = new_h;
         self.last_sent_rect = new_rect;
 
-        let _ = self.overlay.redraw(new_rect);
+        // Upload prepared pixels immediately (reduces latency to <100µs)
+        if let Some(prepared) = prepared_surface {
+            let _ = self.overlay.commit_surface(prepared, new_rect);
+        }
     }
 
     /// Monitors the target window bounds at 120Hz. If the target window could not be resized

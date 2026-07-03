@@ -26,6 +26,32 @@ pub struct Overlay {
 /// Constant for the vertical extension above the window (the "header").
 pub const OVERLAY_TOP_EXTENSION: i32 = 7;
 
+/// Helper struct containing GDI handles for a prepared overlay surface.
+/// Uses RAII to release resources if dropped before commit.
+pub struct PreparedOverlaySurface {
+    pub mem_dc: windows::Win32::Graphics::Gdi::HDC,
+    pub bitmap: windows::Win32::Graphics::Gdi::HBITMAP,
+    pub old_bitmap: windows::Win32::Graphics::Gdi::HGDIOBJ,
+    pub width: i32,
+    pub height: i32,
+}
+
+impl Drop for PreparedOverlaySurface {
+    fn drop(&mut self) {
+        unsafe {
+            if !self.mem_dc.is_invalid() {
+                if !self.old_bitmap.is_invalid() {
+                    let _ = SelectObject(self.mem_dc, self.old_bitmap);
+                }
+                if !self.bitmap.is_invalid() {
+                    let _ = DeleteObject(self.bitmap);
+                }
+                let _ = DeleteDC(self.mem_dc);
+            }
+        }
+    }
+}
+
 impl Overlay {
     /// Internal window procedure for the overlay.
     unsafe extern "system" fn wnd_proc(
@@ -34,7 +60,7 @@ impl Overlay {
         wparam: WPARAM,
         lparam: LPARAM,
     ) -> LRESULT {
-        // The overlay is mostly passive and doesn't handle inputs directly.
+        // The overlay is passive and doesn't handle inputs directly.
         unsafe { DefWindowProcW(hwnd, msg, wparam, lparam) }
     }
 
@@ -113,28 +139,26 @@ impl Overlay {
         }
     }
 
-    /// Redraws the overlay based on the target window's dimensions.
-    ///
-    /// This uses `tiny-skia` for high-quality 2D rendering directly into
-    /// a GDI DIB section to avoid unnecessary memory copies.
-    pub fn redraw(&self, rect: RECT) -> windows::core::Result<()> {
+    /// Prepares the overlay surface on the CPU by rendering into a GDI DIB section.
+    /// Returns GDI handles wrapped in a RAII container.
+    pub fn prepare_surface(&self, rect: RECT) -> Option<PreparedOverlaySurface> {
         let width = rect.right - rect.left;
         let height = (rect.bottom - rect.top) + OVERLAY_TOP_EXTENSION;
 
         if width <= 0 || height <= 0 {
-            return Ok(());
+            return None;
         }
 
         unsafe {
             let screen_dc = windows::Win32::Graphics::Gdi::GetDC(None);
             if screen_dc.is_invalid() {
-                return Ok(());
+                return None;
             }
 
             let mem_dc = CreateCompatibleDC(screen_dc);
             if mem_dc.is_invalid() {
                 windows::Win32::Graphics::Gdi::ReleaseDC(None, screen_dc);
-                return Ok(());
+                return None;
             }
 
             let bmi = BITMAPINFO {
@@ -151,103 +175,138 @@ impl Overlay {
             };
 
             let mut bits = std::ptr::null_mut();
-            let result = CreateDIBSection(mem_dc, &bmi, DIB_RGB_COLORS, &mut bits, None, 0);
-
-            match result {
-                Ok(bitmap) => {
-                    if !bits.is_null() {
-                        // 1. Wrap the DIB section's memory in a tiny-skia PixmapMut.
-                        // This allows rendering directly into GDI-managed memory, eliminating a copy.
-                        let slice = std::slice::from_raw_parts_mut(
-                            bits as *mut u8,
-                            (width * height * 4) as usize,
-                        );
-                        if let Some(mut pixmap) =
-                            PixmapMut::from_bytes(slice, width as u32, height as u32)
-                        {
-                            // Clear with transparent (GDI memory might be uninitialized)
-                            pixmap.fill(Color::TRANSPARENT);
-
-                            let mut paint = Paint::default();
-                            // Optimization: Use pre-swapped color (BGRA) for direct compatibility.
-                            paint.set_color(Color::from_rgba8(215, 120, 0, 50));
-                            paint.anti_alias = true;
-
-                            let mut pb = PathBuilder::new();
-                            let r = 8.0f32; // Corner radius
-                            let w = width as f32;
-                            let h = height as f32;
-
-                            pb.move_to(r, 0.0);
-                            pb.line_to(w - r, 0.0);
-                            pb.quad_to(w, 0.0, w, r);
-                            pb.line_to(w, h - r);
-                            pb.quad_to(w, h, w - r, h);
-                            pb.line_to(r, h);
-                            pb.quad_to(0.0, h, 0.0, h - r);
-                            pb.line_to(0.0, r);
-                            pb.quad_to(0.0, 0.0, r, 0.0);
-                            pb.close();
-
-                            if let Some(path) = pb.finish() {
-                                pixmap.fill_path(
-                                    &path,
-                                    &paint,
-                                    FillRule::Winding,
-                                    Transform::identity(),
-                                    None,
-                                );
-                            }
-                        }
-
-                        // 2. Upload to GDI Layered Window
-                        let old_obj = SelectObject(mem_dc, bitmap);
-
-                        let pt_src = POINT { x: 0, y: 0 };
-                        let pt_dst = POINT {
-                            x: rect.left,
-                            y: rect.top - OVERLAY_TOP_EXTENSION,
-                        };
-                        let size = SIZE {
-                            cx: width,
-                            cy: height,
-                        };
-
-                        let blend = BLENDFUNCTION {
-                            BlendOp: AC_SRC_OVER as u8,
-                            BlendFlags: 0,
-                            SourceConstantAlpha: 255,
-                            AlphaFormat: AC_SRC_ALPHA as u8,
-                        };
-
-                        if let Err(e) = UpdateLayeredWindow(
-                            self.hwnd,
-                            screen_dc,
-                            Some(&pt_dst),
-                            Some(&size),
-                            mem_dc,
-                            Some(&pt_src),
-                            None,
-                            Some(&blend),
-                            ULW_ALPHA,
-                        ) {
-                            eprintln!("Overlay: UpdateLayeredWindow failed: {:?}", e);
-                        }
-
-                        let _ = SelectObject(mem_dc, old_obj);
-                    }
-                    let _ = DeleteObject(bitmap);
+            let bitmap = match CreateDIBSection(mem_dc, &bmi, DIB_RGB_COLORS, &mut bits, None, 0) {
+                Ok(bmp) => bmp,
+                Err(_) => {
+                    let _ = DeleteDC(mem_dc);
+                    windows::Win32::Graphics::Gdi::ReleaseDC(None, screen_dc);
+                    return None;
                 }
-                Err(e) => {
-                    eprintln!("Overlay: CreateDIBSection failed: {:?}", e);
+            };
+
+            if bits.is_null() {
+                let _ = DeleteObject(bitmap);
+                let _ = DeleteDC(mem_dc);
+                windows::Win32::Graphics::Gdi::ReleaseDC(None, screen_dc);
+                return None;
+            }
+
+            // 1. Wrap the DIB section's memory in a tiny-skia PixmapMut.
+            // This allows rendering directly into GDI-managed memory, eliminating a copy.
+            let slice = std::slice::from_raw_parts_mut(
+                bits as *mut u8,
+                (width * height * 4) as usize,
+            );
+            if let Some(mut pixmap) =
+                PixmapMut::from_bytes(slice, width as u32, height as u32)
+            {
+                // Clear with transparent (GDI memory might be uninitialized)
+                pixmap.fill(Color::TRANSPARENT);
+
+                let mut paint = Paint::default();
+                // Optimization: Use pre-swapped color (BGRA) for direct compatibility.
+                paint.set_color(Color::from_rgba8(215, 120, 0, 50));
+                paint.anti_alias = true;
+
+                let mut pb = PathBuilder::new();
+                let r = 8.0f32; // Corner radius
+                let w = width as f32;
+                let h = height as f32;
+
+                pb.move_to(r, 0.0);
+                pb.line_to(w - r, 0.0);
+                pb.quad_to(w, 0.0, w, r);
+                pb.line_to(w, h - r);
+                pb.quad_to(w, h, w - r, h);
+                pb.line_to(r, h);
+                pb.quad_to(0.0, h, 0.0, h - r);
+                pb.line_to(0.0, r);
+                pb.quad_to(0.0, 0.0, r, 0.0);
+                pb.close();
+
+                if let Some(path) = pb.finish() {
+                    pixmap.fill_path(
+                        &path,
+                        &paint,
+                        FillRule::Winding,
+                        Transform::identity(),
+                        None,
+                    );
                 }
             }
 
-            let _ = DeleteDC(mem_dc);
+            let old_bitmap = SelectObject(mem_dc, bitmap);
             windows::Win32::Graphics::Gdi::ReleaseDC(None, screen_dc);
-        }
 
-        Ok(())
+            Some(PreparedOverlaySurface {
+                mem_dc,
+                bitmap,
+                old_bitmap,
+                width,
+                height,
+            })
+        }
+    }
+
+    /// Commits the prepared surface to the DWM/layered window using UpdateLayeredWindow.
+    pub fn commit_surface(&self, mut prepared: PreparedOverlaySurface, rect: RECT) -> windows::core::Result<()> {
+        unsafe {
+            let screen_dc = windows::Win32::Graphics::Gdi::GetDC(None);
+            if screen_dc.is_invalid() {
+                return Ok(());
+            }
+
+            let pt_src = POINT { x: 0, y: 0 };
+            let pt_dst = POINT {
+                x: rect.left,
+                y: rect.top - OVERLAY_TOP_EXTENSION,
+            };
+            let size = SIZE {
+                cx: prepared.width,
+                cy: prepared.height,
+            };
+
+            let blend = BLENDFUNCTION {
+                BlendOp: AC_SRC_OVER as u8,
+                BlendFlags: 0,
+                SourceConstantAlpha: 255,
+                AlphaFormat: AC_SRC_ALPHA as u8,
+            };
+
+            let res = UpdateLayeredWindow(
+                self.hwnd,
+                screen_dc,
+                Some(&pt_dst),
+                Some(&size),
+                prepared.mem_dc,
+                Some(&pt_src),
+                None,
+                Some(&blend),
+                ULW_ALPHA,
+            );
+
+            windows::Win32::Graphics::Gdi::ReleaseDC(None, screen_dc);
+
+            // Clean up handles inside prepared so drop() doesn't double-free or re-select.
+            let _ = SelectObject(prepared.mem_dc, prepared.old_bitmap);
+            let _ = DeleteObject(prepared.bitmap);
+            let _ = DeleteDC(prepared.mem_dc);
+
+            prepared.mem_dc = windows::Win32::Graphics::Gdi::HDC::default();
+            prepared.bitmap = windows::Win32::Graphics::Gdi::HBITMAP::default();
+            prepared.old_bitmap = windows::Win32::Graphics::Gdi::HGDIOBJ::default();
+
+            res
+        }
+    }
+
+    /// Redraws the overlay based on the target window's dimensions.
+    pub fn redraw(&self, rect: RECT) -> windows::core::Result<()> {
+        if let Some(prepared) = self.prepare_surface(rect) {
+            self.commit_surface(prepared, rect)
+        } else {
+            Ok(())
+        }
     }
 
     /// Queues a position update for the overlay.
