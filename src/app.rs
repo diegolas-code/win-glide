@@ -108,8 +108,10 @@ impl App {
 
             // If a session is active, perform the physics and movement update.
             if self.active_window.is_some() {
-                let is_resizing = self.process_resize(dt);
-                if !is_resizing {
+                if self.is_resizing_active() {
+                    // Zero out translation velocity to prevent drift during resizing actions
+                    self.physics.velocity = Vector2D::default();
+                } else {
                     let is_thrusting = self.apply_thrust(dt);
                     self.update(dt, is_thrusting);
                     self.apply_movement(dt);
@@ -195,7 +197,16 @@ impl App {
                         match vk {
                             0x25..=0x28 => {
                                 // Arrow keys: Left, Up, Right, Down
-                                self.pressed_keys.insert(vk);
+                                let is_shift_down = unsafe { GetAsyncKeyState(VK_SHIFT.0 as i32) } as u16 & 0x8000 != 0;
+                                let is_alt_down = unsafe { GetAsyncKeyState(VK_MENU.0 as i32) } as u16 & 0x8000 != 0;
+
+                                if is_shift_down || is_alt_down {
+                                    // Resizing: zero out translation velocity and perform step resize
+                                    self.physics.velocity = Vector2D::default();
+                                    self.perform_discrete_resize(vk, is_shift_down, is_alt_down);
+                                } else {
+                                    self.pressed_keys.insert(vk);
+                                }
                             }
                             0x10..=0x12 | 0x5B..=0x5C | 0xA0..=0xA5 => {
                                 // Ignore modifiers (Shift, Ctrl, Alt, Win) to avoid
@@ -505,160 +516,11 @@ impl App {
         }
     }
 
-    /// Checks for resize modifiers and active arrow keys.
-    /// If resizing is active, applies continuous physics thrust and updates window sizes.
-    /// Otherwise, zeroes out resize physics velocity.
-    fn process_resize(&mut self, dt: f32) -> bool {
-        let hwnd = match self.active_window {
-            Some(h) => h,
-            None => return false,
-        };
-
-        // Swapped modifiers: Shift is expand, Alt (Menu) is shrink
+    /// Checks if a resizing modifier is currently active.
+    fn is_resizing_active(&mut self) -> bool {
         let is_shift_down = unsafe { GetAsyncKeyState(VK_SHIFT.0 as i32) } as u16 & 0x8000 != 0;
         let is_alt_down = unsafe { GetAsyncKeyState(VK_MENU.0 as i32) } as u16 & 0x8000 != 0;
-
-        let left_pressed = self.pressed_keys.contains(&0x25);
-        let up_pressed = self.pressed_keys.contains(&0x26);
-        let right_pressed = self.pressed_keys.contains(&0x27);
-        let down_pressed = self.pressed_keys.contains(&0x28);
-
-        let has_arrow_pressed = left_pressed || up_pressed || right_pressed || down_pressed;
-        let is_resizing = (is_shift_down || is_alt_down) && has_arrow_pressed;
-
-        if !is_resizing {
-            // Reset resize physics velocity immediately when resizing is inactive to prevent sliding
-            self.resize_physics.velocity = Vector2D::default();
-            self.resize_accumulated_dt = 0.0;
-            return false;
-        }
-
-        // Handoff logic: zero out translation velocity immediately when resizing
-        self.physics.velocity = Vector2D::default();
-
-        // Calculate continuous thrust vector from arrow keys
-        let mut thrust = Vector2D::default();
-        if left_pressed {
-            thrust.x -= 1.0;
-        }
-        if right_pressed {
-            thrust.x += 1.0;
-        }
-        if up_pressed {
-            thrust.y -= 1.0;
-        }
-        if down_pressed {
-            thrust.y += 1.0;
-        }
-
-        if thrust.x != 0.0 || thrust.y != 0.0 {
-            // Normalize diagonal thrust
-            let length = (thrust.x.powi(2) + thrust.y.powi(2)).sqrt();
-            thrust.x /= length;
-            thrust.y /= length;
-
-            self.resize_physics.apply_thrust(thrust, dt);
-        }
-
-        // Update resize physics (apply friction) at full loop rate (120Hz)
-        let is_thrusting = thrust.x != 0.0 || thrust.y != 0.0;
-        self.resize_physics.update(dt, is_thrusting);
-
-        // Accumulate time for layout update throttling
-        self.resize_accumulated_dt += dt;
-
-        // Throttle actual window resizing API calls to ~60Hz to prevent thread choking on target windows.
-        if self.resize_accumulated_dt < 0.016 {
-            return true;
-        }
-
-        let layout_dt = self.resize_accumulated_dt;
-        self.resize_accumulated_dt = 0.0;
-
-        let dx = self.resize_physics.velocity.x * layout_dt;
-        let dy = self.resize_physics.velocity.y * layout_dt;
-
-        let work_area = Platform::get_nearest_monitor_work_area(hwnd).unwrap_or_default();
-        let vs = Platform::get_virtual_screen_rect();
-
-        let (new_x, new_y, new_w, new_h) = crate::window::calculate_resized_rect(
-            self.pos_x,
-            self.pos_y,
-            self.width_f32,
-            self.height_f32,
-            is_shift_down,
-            is_alt_down,
-            dx,
-            dy,
-            self.dpi,
-            work_area,
-            vs,
-        );
-
-        self.pos_x = new_x;
-        self.pos_y = new_y;
-        self.width_f32 = new_w;
-        self.height_f32 = new_h;
-
-        let new_rect = RECT {
-            left: new_x.round() as i32,
-            top: new_y.round() as i32,
-            right: (new_x + new_w).round() as i32,
-            bottom: (new_y + new_h).round() as i32,
-        };
-
-        let old_rect = self.window_rect;
-        self.window_rect = new_rect;
-
-        let width_changed = (new_rect.right - new_rect.left) != (old_rect.right - old_rect.left);
-        let height_changed = (new_rect.bottom - new_rect.top) != (old_rect.bottom - old_rect.top);
-        let size_changed = width_changed || height_changed;
-
-        // Optimization: Only call Win32 movement APIs if the integer position/size changed.
-        if new_rect.left != self.last_sent_rect.left
-            || new_rect.top != self.last_sent_rect.top
-            || new_rect.right != self.last_sent_rect.right
-            || new_rect.bottom != self.last_sent_rect.bottom
-        {
-            unsafe {
-                let hdwp_count = if size_changed { 1 } else { 2 };
-                if let Ok(hdwp) = BeginDeferWindowPos(hdwp_count) {
-                    let mut hdwp = hdwp;
-
-                    // Move/Resize target window (Omit SWP_NOCOPYBITS to allow smooth copy blits; add SWP_NOSENDCHANGING to skip delay)
-                    if let Ok(h) = DeferWindowPos(
-                        hdwp,
-                        hwnd,
-                        HWND::default(),
-                        new_rect.left,
-                        new_rect.top,
-                        new_rect.right - new_rect.left,
-                        new_rect.bottom - new_rect.top,
-                        SWP_NOACTIVATE | SWP_NOZORDER,
-                    ) {
-                        hdwp = h;
-                    }
-
-                    // Move/Resize overlay to match only if the size did not change.
-                    // If the size changed, UpdateLayeredWindow inside self.overlay.redraw handles it.
-                    if !size_changed {
-                        if let Ok(h) = self.overlay.defer_update_position(hdwp, self.window_rect) {
-                            hdwp = h;
-                        }
-                    }
-
-                    let _ = EndDeferWindowPos(hdwp);
-                    self.last_sent_rect = new_rect;
-                }
-            }
-
-            // Redraw overlay bitmap content and update its dimensions via UpdateLayeredWindow
-            if size_changed {
-                let _ = self.overlay.redraw(self.window_rect);
-            }
-        }
-
-        true
+        is_shift_down || is_alt_down
     }
 
     /// Performs a discrete-step resize of the target window and overlays it correctly,
