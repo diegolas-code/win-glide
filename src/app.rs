@@ -46,8 +46,6 @@ pub struct App {
     width_f32: f32,
     /// High-precision height.
     height_f32: f32,
-    /// Resize speed in pixels per second.
-    resize_speed: f32,
     /// DPI of the current monitor (for future scaling support).
     dpi: u32,
     /// The visual overlay (tinted window).
@@ -94,7 +92,6 @@ impl App {
             pos_y: 0.0,
             width_f32: 0.0,
             height_f32: 0.0,
-            resize_speed,
             dpi: 96,
             overlay: Overlay::new().expect("Failed to create Overlay"),
             last_sent_rect: RECT::default(),
@@ -523,16 +520,17 @@ impl App {
     }
 
     /// Checks for resize modifiers and active arrow keys.
-    /// If resizing is active, computes the new coordinates, zeros momentum,
-    /// performs safety bounds, and updates the window layout in a single transaction.
+    /// If resizing is active, applies continuous physics thrust and updates window sizes.
+    /// Otherwise, zeroes out resize physics velocity.
     fn process_resize(&mut self, dt: f32) -> bool {
         let hwnd = match self.active_window {
             Some(h) => h,
             None => return false,
         };
 
-        let is_alt_down = unsafe { GetAsyncKeyState(VK_MENU.0 as i32) } as u16 & 0x8000 != 0;
+        // Swapped modifiers: Shift is expand, Alt (Menu) is shrink
         let is_shift_down = unsafe { GetAsyncKeyState(VK_SHIFT.0 as i32) } as u16 & 0x8000 != 0;
+        let is_alt_down = unsafe { GetAsyncKeyState(VK_MENU.0 as i32) } as u16 & 0x8000 != 0;
 
         let left_pressed = self.pressed_keys.contains(&0x25);
         let up_pressed = self.pressed_keys.contains(&0x26);
@@ -540,16 +538,48 @@ impl App {
         let down_pressed = self.pressed_keys.contains(&0x28);
 
         let has_arrow_pressed = left_pressed || up_pressed || right_pressed || down_pressed;
-        let is_resizing = (is_alt_down || is_shift_down) && has_arrow_pressed;
+        let is_resizing = (is_shift_down || is_alt_down) && has_arrow_pressed;
 
         if !is_resizing {
+            // Reset resize physics velocity immediately when resizing is inactive to prevent sliding
+            self.resize_physics.velocity = Vector2D::default();
             return false;
         }
 
         // Handoff logic: zero out translation velocity immediately when resizing
         self.physics.velocity = Vector2D::default();
 
-        let step = self.resize_speed * dt;
+        // Calculate continuous thrust vector from arrow keys
+        let mut thrust = Vector2D::default();
+        if left_pressed {
+            thrust.x -= 1.0;
+        }
+        if right_pressed {
+            thrust.x += 1.0;
+        }
+        if up_pressed {
+            thrust.y -= 1.0;
+        }
+        if down_pressed {
+            thrust.y += 1.0;
+        }
+
+        if thrust.x != 0.0 || thrust.y != 0.0 {
+            // Normalize diagonal thrust
+            let length = (thrust.x.powi(2) + thrust.y.powi(2)).sqrt();
+            thrust.x /= length;
+            thrust.y /= length;
+
+            self.resize_physics.apply_thrust(thrust, dt);
+        }
+
+        // Update resize physics (apply friction)
+        let is_thrusting = thrust.x != 0.0 || thrust.y != 0.0;
+        self.resize_physics.update(dt, is_thrusting);
+
+        let dx = self.resize_physics.velocity.x * dt;
+        let dy = self.resize_physics.velocity.y * dt;
+
         let work_area = Platform::get_nearest_monitor_work_area(hwnd).unwrap_or_default();
         let vs = Platform::get_virtual_screen_rect();
 
@@ -558,13 +588,10 @@ impl App {
             self.pos_y,
             self.width_f32,
             self.height_f32,
-            is_alt_down,
             is_shift_down,
-            left_pressed,
-            right_pressed,
-            up_pressed,
-            down_pressed,
-            step,
+            is_alt_down,
+            dx,
+            dy,
             self.dpi,
             work_area,
             vs,
