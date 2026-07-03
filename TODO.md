@@ -119,3 +119,17 @@
 - [ ] Finalize user documentation and version bump to v1.0.0
 - [ ] Commit & Merge to dev
 
+## Phase 11: Keyboard-Driven Window Resizing
+- [ ] Configure keyboard hook `keyboard_proc` in `src/input.rs` to allow `VK_MENU` and `VK_SHIFT` to pass through, keeping arrow key consumption active during active sessions
+- [ ] Add `resize_speed: f32` to the `Config` struct in `src/config.rs` and load it from `config.json` (default `600.0` px/s)
+- [ ] Add `width_f32` and `height_f32` accumulators to `App` in `src/app.rs` and initialize them on session activation
+- [ ] Implement `GetAsyncKeyState` modifier checks inside `App::process_events` on the main loop thread
+- [ ] Implement glide-resize handoff logic to zero translation velocity when a resize modifier is held with an arrow key
+- [ ] Implement resizing coordinate math for Alt-growth and Shift-shrink
+- [ ] Implement safety bounds checks (DPI-scaled minimum size 250x250px, monitor work area limits, and virtual desktop visibility margin)
+- [ ] Integrate coordinated window and overlay movement via a single `BeginDeferWindowPos` transaction
+- [ ] Optimize overlay re-rendering to only call `Overlay::redraw` when integer size dimensions change
+- [ ] Write unit tests for coordinate resizing calculations and integration tests for overlay-resizing alignment
+- [ ] Commit & Merge to dev
+
+

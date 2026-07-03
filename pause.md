@@ -24,14 +24,23 @@
     - **Glide and Center Protection:** Blocks both glide activation and one-shot centering operations on system UI elements, outputting warning logs.
     - **Integration Test Coverage:** Validated the live exclusion checking mechanism using real system UI controls.
 
+- **Phase 11: Keyboard-Driven Window Resizing (Design Phase Completed)**
+    - **Control Scheme Finalized:** Absolute modifier mapping (`Alt` to grow, `Shift` to shrink).
+    - **Configuration Integrated:** Added `resize_speed` support mapping to `config.json`.
+    - **Safety Boundaries Designed:** DPI-scaled $250\text{px}$ floor, work area checks, and off-screen margin rules.
+    - **Overlay Synchronization Optimization:** Coordinated single-transaction layout update and conditional redraw optimization designed to avoid DIB reallocation overhead.
+
 ## Immediate Next Steps
-- **Phase 10: Productization (Queued Next)**
-    - Create a release-optimized build profile.
-    - Implement a system tray icon for status visibility and graceful exit.
-    - Research and implement a simple installer.
-    - Final audit of the `config.json` schema for long-term stability.
+- **Phase 11: Keyboard-Driven Window Resizing (Active Development)**
+    - Implement low-level keyboard hook modifier passthrough in `src/input.rs`.
+    - Implement accumulators, configuration deserialization, and state checks in `src/app.rs` and `src/config.rs`.
+    - Implement resize boundaries math, DPI scaling, and safety limits.
+    - Implement `BeginDeferWindowPos` synchronization and GDI draw optimizations.
+    - Write unit/integration tests for resizing math and bounds clamping.
 
 ## Technical Notes
 - The 1.2MB RAM usage is the stable "warmed-up" baseline after the first activation.
 - The app is optimized for "silence" - consuming near-zero CPU and minimizing OS API interaction while backgrounded.
 - Center-window design handles both active glide sessions (stops glide drift and updates overlay) and inactive sessions (moves foreground window directly) with safety policies in place.
+- Resizing operates on step-based accumulator logic to keep dimensions robust and frame-rate independent.
+
