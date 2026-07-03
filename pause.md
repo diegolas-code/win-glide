@@ -28,7 +28,7 @@
     - **Control Scheme Implemented:** Swapped modifiers to use `Shift` to grow/expand, and `Alt` to shrink/reduce.
     - **Discrete Resize Steps:** Replaced continuous resizing with discrete step changes triggered directly on KeyDown events, leveraging OS-native keyboard repeat rates for high snappiness and zero layout stutters.
     - **Corrected Shrink Border Directions:** Corrected opposite edges to pull inward, moving the active border in the direction of the arrow key pressed (e.g. Alt + Down pulls the top border down).
-    - **Overlay Bounds Synchronization:** Added post-resize queries via `GetWindowRect` to sync the overlay to the target window's actual dimensions. This prevents visual mismatches when windows refuse to shrink past their application-internal minimum limits.
+    - **Overlay Bounds Sync & Position Correction:** Performs client-side prediction for instant lag-free rendering, coupled with a 120Hz background monitoring thread that queries `GetWindowRect` to self-heal size mismatches and trigger corrective `SetWindowPos` calls to prevent position shifting when target windows hit internal minimum limits.
     - **Configuration Integrated:** Added `resize_speed` support mapping to `config.json`.
     - **Safety Boundaries Clamped:** Enforces DPI-scaled $250\text{px}$ floor, active monitor work area bounds, and $150\text{px}$ off-screen margin rules.
     - **Clean Transition Physics:** Instantly zeros translational velocity when resizing begins to prevent window drifting.

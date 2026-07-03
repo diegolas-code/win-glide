@@ -125,7 +125,7 @@
 - [x] Implement swapped resizing modifiers: Shift to expand, Alt to shrink
 - [x] Implement corrected shrink edge directions (pulling opposite edge)
 - [x] Implement discrete-step resizing triggered by KeyDown events to maximize snappiness and eliminate layout stutters
-- [x] Implement overlay synchronization via post-resize GetWindowRect queries to respect target window minimum sizing limits
+- [x] Implement overlay synchronization and position correction via 120Hz background monitoring to respect target window minimum sizes and prevent position shifting
 - [ ] Commit & Merge to dev
 
 ## Phase 11: Productization (The Road to v1.0.0)

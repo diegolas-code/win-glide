@@ -15,14 +15,14 @@
     *   By executing on keydown events, holding the key down automatically utilizes the OS-native keyboard repeat rate and delay setting, yielding a highly responsive, snappy experience with no frame rate lag.
     *   Completely removed `resize_physics` and `resize_accumulated_dt` fields to simplify the codebase.
 
-### 2. Overlay Synchronization via GetWindowRect
-*   **Problem:** Target windows (like VS Code, Task Manager, Slack, etc.) enforce their own application-internal minimum sizing limits that are larger than our custom 250px floor. Our previous code would shrink the overlay past these limits, causing a size mismatch.
-*   **Decision:** Added a sync loop:
-    1.  Perform `SetWindowPos` on the target window.
-    2.  Immediately call `GetWindowRect(hwnd)` to query the **actual** bounds the OS applied.
-    3.  Update the internal `App` state (`pos_x`, `pos_y`, `width_f32`, `height_f32`, `window_rect`) to match these actual bounds.
-    4.  Call `Overlay::redraw` using the synced actual bounds.
-*   **Result:** The overlay is guaranteed to never detach or shrink past the target window's physical limit.
+### 2. Overlay Synchronization & Position Correction via 120Hz Monitoring
+*   **Problem 1 (Overlay Lag):** Because target windows are owned by separate threads, `SetWindowPos` is asynchronous. Querying `GetWindowRect` immediately after calling `SetWindowPos` returned stale dimensions because the target thread hadn't processed the resize message yet. This caused the overlay to lag behind by one step, creating a visible redraw delay.
+*   **Problem 2 (Position Shifting):** When a window is shrunk from the left (`Alt + Right`) or top (`Alt + Down`), the position changes. If the target window refuses to shrink below its application-internal minimum size (e.g. 400px), it ignores the size change but accepts the position change. This caused the whole window to shift ("pull to the side") without resizing.
+*   **Decision:** Split the synchronization and correction into a two-pronged system:
+    1.  **Immediate Prediction:** In `perform_discrete_resize`, immediately update the overlay to the calculated `new_rect` for instant, zero-latency visual feedback.
+    2.  **120Hz Background Sync:** In `App::run`, call a new background method `sync_overlay_to_actual_window` at 120Hz. If a mismatch is detected between the actual OS window bounds and our tracked state (which happens 8-16ms after a constrained resize), it updates the tracked state and syncs the overlay.
+    3.  **Position Shift Recovery:** If a mismatch is detected during a shrink operation where the actual width/height is larger than expected, the sync code calculates the corrected coordinates needed to keep the opposite edge (right or bottom) stationary. It then invokes a corrective `SetWindowPos` to undo the position shift.
+*   **Result:** The overlay behaves with zero latency, the window never drifts or shifts when hitting sizing limits, and the overlay perfectly matches the final actual boundaries.
 
 ---
 
