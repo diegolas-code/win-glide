@@ -572,18 +572,33 @@ impl App {
             bottom: (new_y + new_h).round() as i32,
         };
 
-        // Apply changes to target window (Omit SWP_NOCOPYBITS to allow smooth copy blits)
+        // Apply changes to target window and overlay in a single atomic transaction
+        // (Omit SWP_NOCOPYBITS to allow smooth copy blits)
         unsafe {
-            let flags = SWP_NOACTIVATE | SWP_NOZORDER;
-            let _ = SetWindowPos(
-                hwnd,
-                HWND::default(),
-                new_rect.left,
-                new_rect.top,
-                new_rect.right - new_rect.left,
-                new_rect.bottom - new_rect.top,
-                flags,
-            );
+            if let Ok(hdwp) = BeginDeferWindowPos(2) {
+                let mut hdwp = hdwp;
+
+                // Position/Resize target window
+                if let Ok(h) = DeferWindowPos(
+                    hdwp,
+                    hwnd,
+                    HWND::default(),
+                    new_rect.left,
+                    new_rect.top,
+                    new_rect.right - new_rect.left,
+                    new_rect.bottom - new_rect.top,
+                    SWP_NOACTIVATE | SWP_NOZORDER,
+                ) {
+                    hdwp = h;
+                }
+
+                // Position/Resize overlay window synchronously
+                if let Ok(h) = self.overlay.defer_update_position(hdwp, new_rect) {
+                    hdwp = h;
+                }
+
+                let _ = EndDeferWindowPos(hdwp);
+            }
         }
 
         // Draw overlay immediately to the target size for zero latency visual feedback
