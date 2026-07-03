@@ -28,6 +28,8 @@
     - **Control Scheme Implemented:** Swapped modifiers to use `Shift` to grow/expand, and `Alt` to shrink/reduce.
     - **Continuous Resize Physics:** Replaced step-based resizing with a dedicated scaled `resize_physics` simulation that applies continuous thrust and decay.
     - **Corrected Shrink Border Directions:** Corrected opposite edges to pull inward, moving the active border in the direction of the arrow key pressed (e.g. Alt + Down pulls the top border down).
+    - **Resizing Smoothness & 60Hz Throttling:** Throttles external layout calls to 60Hz while running physics at 120Hz, preventing paint backlogs in third-party window queues.
+    - **Sizing Flag Optimizations:** Removed `SWP_NOCOPYBITS` to leverage native BitBlt copy-bits, and added `SWP_NOSENDCHANGING` to bypass layout message dispatch delays.
     - **Configuration Integrated:** Added `resize_speed` support mapping to `config.json`.
     - **High-Precision Sizing State:** Implemented fractional accumulators (`width_f32`, `height_f32`) to keep dimensions robust and frame-rate independent.
     - **Glide Handoff:** Instantly zeros translational velocity when a resize combination starts to prevent drift.

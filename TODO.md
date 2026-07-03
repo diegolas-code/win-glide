@@ -125,6 +125,8 @@
 - [x] Implement swapped resizing modifiers: Shift to expand, Alt to shrink
 - [x] Implement corrected shrink edge directions (pulling opposite edge)
 - [x] Implement continuous momentum-based resize physics state
+- [x] Implement 60Hz layout updates throttling during resizing to prevent paint queue choking
+- [x] Optimize Win32 sizing flags (remove SWP_NOCOPYBITS, add SWP_NOSENDCHANGING) to eliminate rendering blockiness
 - [ ] Commit & Merge to dev
 
 ## Phase 11: Productization (The Road to v1.0.0)
