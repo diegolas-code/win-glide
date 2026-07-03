@@ -39,6 +39,12 @@ pub struct App {
     pos_x: f32,
     /// High-precision vertical position.
     pos_y: f32,
+    /// High-precision width.
+    width_f32: f32,
+    /// High-precision height.
+    height_f32: f32,
+    /// Resize speed in pixels per second.
+    resize_speed: f32,
     /// DPI of the current monitor (for future scaling support).
     dpi: u32,
     /// The visual overlay (tinted window).
@@ -55,6 +61,7 @@ impl App {
     pub fn new(
         event_rx: Receiver<InputEvent>,
         physics_config: PhysicsConfig,
+        resize_speed: f32,
         input_manager: Arc<InputManager>,
     ) -> Self {
         Self {
@@ -67,6 +74,9 @@ impl App {
             window_rect: RECT::default(),
             pos_x: 0.0,
             pos_y: 0.0,
+            width_f32: 0.0,
+            height_f32: 0.0,
+            resize_speed,
             dpi: 96,
             overlay: Overlay::new().expect("Failed to create Overlay"),
             last_sent_rect: RECT::default(),
@@ -260,6 +270,8 @@ impl App {
                     // Update internal state
                     self.pos_x = new_rect.left as f32;
                     self.pos_y = new_rect.top as f32;
+                    self.width_f32 = new_w as f32;
+                    self.height_f32 = new_h as f32;
                     self.window_rect = new_rect;
                     self.physics.velocity = Vector2D::default();
 
@@ -343,6 +355,8 @@ impl App {
                     // Seed high-precision position with current window position.
                     self.pos_x = rect.left as f32;
                     self.pos_y = rect.top as f32;
+                    self.width_f32 = (rect.right - rect.left) as f32;
+                    self.height_f32 = (rect.bottom - rect.top) as f32;
                     self.dpi = Platform::get_dpi_for_window(hwnd);
 
                     // Tell the input hooks to start intercepting/modifying input.
