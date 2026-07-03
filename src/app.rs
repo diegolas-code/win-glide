@@ -24,8 +24,6 @@ use windows::Win32::UI::WindowsAndMessaging::{
 pub struct App {
     /// Physics simulation state.
     physics: PhysicsState,
-    /// Physics simulation state for resizing.
-    resize_physics: PhysicsState,
     /// Channel for receiving events from the input thread.
     event_rx: Receiver<InputEvent>,
     /// Handle to the input manager for coordination (e.g., shutdown).
@@ -46,6 +44,8 @@ pub struct App {
     width_f32: f32,
     /// High-precision height.
     height_f32: f32,
+    /// Configured resize speed.
+    resize_speed: f32,
     /// DPI of the current monitor (for future scaling support).
     dpi: u32,
     /// The visual overlay (tinted window).
@@ -54,8 +54,6 @@ pub struct App {
     last_sent_rect: RECT,
     /// Set of keys currently held down.
     pressed_keys: HashSet<u32>,
-    /// Accumulated dt specifically for throttling window resize API calls.
-    resize_accumulated_dt: f32,
     /// Flag to keep the main loop running.
     running: bool,
 }
@@ -67,17 +65,8 @@ impl App {
         resize_speed: f32,
         input_manager: Arc<InputManager>,
     ) -> Self {
-        // Use full acceleration for snappiness, capping top speed at resize_speed
-        let resize_physics_config = PhysicsConfig {
-            acceleration: physics_config.acceleration,
-            friction: physics_config.friction,
-            thrust_friction: physics_config.thrust_friction,
-            top_speed: resize_speed,
-        };
-
         Self {
             physics: PhysicsState::new(physics_config),
-            resize_physics: PhysicsState::new(resize_physics_config),
             event_rx,
             input_manager,
             last_update: Instant::now(),
@@ -88,11 +77,11 @@ impl App {
             pos_y: 0.0,
             width_f32: 0.0,
             height_f32: 0.0,
+            resize_speed,
             dpi: 96,
             overlay: Overlay::new().expect("Failed to create Overlay"),
             last_sent_rect: RECT::default(),
             pressed_keys: HashSet::new(),
-            resize_accumulated_dt: 0.0,
             running: true,
         }
     }
