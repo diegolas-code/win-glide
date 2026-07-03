@@ -65,15 +65,9 @@ impl App {
         resize_speed: f32,
         input_manager: Arc<InputManager>,
     ) -> Self {
-        // Scale physics properties proportionally for resizing speed
-        let resize_scale = if physics_config.top_speed > 0.0 {
-            resize_speed / physics_config.top_speed
-        } else {
-            1.0
-        };
-
+        // Use full acceleration for snappiness, capping top speed at resize_speed
         let resize_physics_config = PhysicsConfig {
-            acceleration: physics_config.acceleration * resize_scale,
+            acceleration: physics_config.acceleration,
             friction: physics_config.friction,
             thrust_friction: physics_config.thrust_friction,
             top_speed: resize_speed,
@@ -623,7 +617,8 @@ impl App {
             || new_rect.bottom != self.last_sent_rect.bottom
         {
             unsafe {
-                if let Ok(hdwp) = BeginDeferWindowPos(2) {
+                let hdwp_count = if size_changed { 1 } else { 2 };
+                if let Ok(hdwp) = BeginDeferWindowPos(hdwp_count) {
                     let mut hdwp = hdwp;
 
                     // Move/Resize target window
@@ -640,9 +635,12 @@ impl App {
                         hdwp = h;
                     }
 
-                    // Move/Resize overlay to match
-                    if let Ok(h) = self.overlay.defer_update_position(hdwp, self.window_rect) {
-                        hdwp = h;
+                    // Move/Resize overlay to match only if the size did not change.
+                    // If the size changed, UpdateLayeredWindow inside self.overlay.redraw handles it.
+                    if !size_changed {
+                        if let Ok(h) = self.overlay.defer_update_position(hdwp, self.window_rect) {
+                            hdwp = h;
+                        }
                     }
 
                     let _ = EndDeferWindowPos(hdwp);
@@ -650,7 +648,7 @@ impl App {
                 }
             }
 
-            // Redraw overlay bitmap content only when integer size changes
+            // Redraw overlay bitmap content and update its dimensions via UpdateLayeredWindow
             if size_changed {
                 let _ = self.overlay.redraw(self.window_rect);
             }
