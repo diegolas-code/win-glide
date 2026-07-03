@@ -118,7 +118,7 @@
 - [x] Implement `GetAsyncKeyState` modifier checks inside `App::process_events` on the main loop thread
 - [x] Implement glide-resize handoff logic to zero translation velocity when a resize modifier is held with an arrow key
 - [x] Implement resizing coordinate math for Alt-growth and Shift-shrink
-- [x] Implement safety bounds checks (DPI-scaled minimum size 250x250px, monitor work area limits, and virtual desktop visibility margin)
+- [x] Implement safety bounds checks (DPI-scaled minimum size 350x350px, monitor work area limits, and virtual desktop visibility margin)
 - [x] Integrate coordinated window and overlay movement via a single `BeginDeferWindowPos` transaction
 - [x] Optimize overlay re-rendering to only call `Overlay::redraw` when integer size dimensions change
 - [x] Write unit tests for coordinate resizing calculations and integration tests for overlay-resizing alignment
@@ -131,6 +131,7 @@
 - [x] Implement overlay synchronization and position correction via 120Hz background monitoring to respect target window minimum sizes and prevent position shifting
 - [x] Implement coordinated layout updates via DeferWindowPos during discrete resizing to eliminate visual dragging lag
 - [x] Implement split-phase rendering (pre-render prepare + DWM commit) to eliminate 1-frame expansion lag
+- [x] Implement dynamic minimum sizing limits caching and 4-way position shift correction to handle application min bounds
 - [ ] Commit & Merge to dev
 
 ## Phase 11: Productization (The Road to v1.0.0)

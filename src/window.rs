@@ -304,8 +304,8 @@ pub fn calculate_resized_rect(
 
     // 1. Minimum Size Floor (DPI scaled)
     let scale_factor = dpi as f32 / 96.0;
-    let min_w = 250.0 * scale_factor;
-    let min_h = 250.0 * scale_factor;
+    let min_w = 350.0 * scale_factor;
+    let min_h = 350.0 * scale_factor;
 
     if new_w < min_w {
         if is_alt_down && dx > 0.0 {
@@ -447,42 +447,42 @@ mod tests {
 
         // Test Shift + Right (Expand Right, dx > 0)
         let (x, _y, w, _h) = calculate_resized_rect(
-            100.0, 100.0, 300.0, 300.0,
+            100.0, 100.0, 400.0, 400.0,
             true, false, // is_shift_down, is_alt_down
             50.0, 0.0, // dx, dy
             96, work_area, vs
         );
         assert_eq!(x, 100.0);
-        assert_eq!(w, 350.0);
+        assert_eq!(w, 450.0);
 
         // Test Shift + Left (Expand Left, dx < 0)
         let (x, _y, w, _h) = calculate_resized_rect(
-            100.0, 100.0, 300.0, 300.0,
+            100.0, 100.0, 400.0, 400.0,
             true, false,
             -50.0, 0.0,
             96, work_area, vs
         );
         assert_eq!(x, 50.0);
-        assert_eq!(w, 350.0);
+        assert_eq!(w, 450.0);
 
         // Test Alt + Right (Shrink Left edge rightwards, dx > 0)
         let (x, _y, w, _h) = calculate_resized_rect(
-            100.0, 100.0, 300.0, 300.0,
+            100.0, 100.0, 400.0, 400.0,
             false, true,
             50.0, 0.0,
             96, work_area, vs
         );
         assert_eq!(x, 150.0);
-        assert_eq!(w, 250.0);
+        assert_eq!(w, 350.0);
 
         // Test Alt + Left (Shrink Right edge leftwards, dx < 0)
         let (x, _y, w, _h) = calculate_resized_rect(
-            100.0, 100.0, 300.0, 300.0,
+            100.0, 100.0, 400.0, 400.0,
             false, true,
             -50.0, 0.0,
             96, work_area, vs
         );
         assert_eq!(x, 100.0);
-        assert_eq!(w, 250.0);
+        assert_eq!(w, 350.0);
     }
 }

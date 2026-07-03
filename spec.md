@@ -61,13 +61,13 @@ win-glide is a high-performance Windows utility for rapid, momentum-based window
 
 ## 10. Keyboard-Driven Window Resizing
 *   **Control Scheme:** Modifiers held while pressing Arrow keys during an active glide session:
-    *   **`Alt` + Arrow Key:** Expand (Grow) window outward from the matching edge.
-    *   **`Shift` + Arrow Key:** Shrink (Pull In) window inward from the matching edge.
+    *   **`Shift` + Arrow Key:** Expand (Grow) window outward from the matching edge.
+    *   **`Alt` + Arrow Key:** Shrink (Pull In) window inward from the matching edge.
     *   **Arrow Key (No Modifiers):** Standard translation/movement physics.
 *   **Speed Control:** Configurable via root-level `resize_speed` parameter in `config.json` (defaults to `600.0` pixels per second).
 *   **Movement Model:** Step-based accumulation using `width_f32` and `height_f32` fields on the `App` struct. Step size is calculated as `step = resize_speed * dt` to remain frame-rate independent.
 *   **Safety Guards:**
-    *   **Minimum Size Floor:** Hardcoded minimum dimensions of 250x250px, dynamically scaled by the target window's DPI factor.
+    *   **Minimum Size Floor:** Hardcoded minimum dimensions of 350x350px, dynamically scaled by the target window's DPI factor.
     *   **Work Area Limits:** Resizing expansion cannot push the window bounds outside the nearest monitor's work area.
     *   **Off-screen Margins:** Resizing/shifting cannot push window beyond the virtual screen margins (keeping at least 150px of the window visible).
 *   **Handoff Logic:** Zero out translation velocity `self.physics.velocity` immediately upon resize key combination processing to avoid momentum drift during resizing.
