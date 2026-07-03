@@ -660,4 +660,80 @@ impl App {
 
         true
     }
+
+    /// Performs a discrete-step resize of the target window and overlays it correctly,
+    /// querying the actual final dimensions from the OS to ensure pixel-perfect synchronization.
+    fn perform_discrete_resize(&mut self, vk: u32, is_shift_down: bool, is_alt_down: bool) {
+        let hwnd = match self.active_window {
+            Some(h) => h,
+            None => return,
+        };
+
+        // Determine step size based on configured resize_speed
+        // Default: 600.0 / 12.0 = 50.0 pixels
+        let step = (self.resize_speed / 12.0).round().max(10.0);
+
+        let mut dx = 0.0;
+        let mut dy = 0.0;
+
+        match vk {
+            0x25 => dx = -step, // Left
+            0x27 => dx = step,  // Right
+            0x26 => dy = -step, // Up
+            0x28 => dy = step,  // Down
+            _ => return,
+        }
+
+        let work_area = Platform::get_nearest_monitor_work_area(hwnd).unwrap_or_default();
+        let vs = Platform::get_virtual_screen_rect();
+
+        let (new_x, new_y, new_w, new_h) = crate::window::calculate_resized_rect(
+            self.pos_x,
+            self.pos_y,
+            self.width_f32,
+            self.height_f32,
+            is_shift_down,
+            is_alt_down,
+            dx,
+            dy,
+            self.dpi,
+            work_area,
+            vs,
+        );
+
+        let new_rect = RECT {
+            left: new_x.round() as i32,
+            top: new_y.round() as i32,
+            right: (new_x + new_w).round() as i32,
+            bottom: (new_y + new_h).round() as i32,
+        };
+
+        // Apply changes to target window (Omit SWP_NOCOPYBITS to allow smooth copy blits)
+        unsafe {
+            let flags = SWP_NOACTIVATE | SWP_NOZORDER;
+            let _ = SetWindowPos(
+                hwnd,
+                HWND::default(),
+                new_rect.left,
+                new_rect.top,
+                new_rect.right - new_rect.left,
+                new_rect.bottom - new_rect.top,
+                flags,
+            );
+
+            // Immediately query target window's ACTUAL resulting rect from the OS
+            let mut actual_rect = RECT::default();
+            if GetWindowRect(hwnd, &mut actual_rect).is_ok() {
+                self.window_rect = actual_rect;
+                self.pos_x = actual_rect.left as f32;
+                self.pos_y = actual_rect.top as f32;
+                self.width_f32 = (actual_rect.right - actual_rect.left) as f32;
+                self.height_f32 = (actual_rect.bottom - actual_rect.top) as f32;
+                self.last_sent_rect = actual_rect;
+
+                // Sync the overlay size and position to the actual rect
+                let _ = self.overlay.redraw(actual_rect);
+            }
+        }
+    }
 }
