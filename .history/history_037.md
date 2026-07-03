@@ -17,7 +17,7 @@
 
 ### 2. Sizing Flag Optimization
 *   **SWP_NOCOPYBITS Removal:** Omitted `SWP_NOCOPYBITS` from the `DeferWindowPos` flags during resizing. This allows Windows to copy the valid client area pixels during layout shifts, preventing blank/erased background flashes.
-*   **SWP_NOSENDCHANGING Addition:** Added `SWP_NOSENDCHANGING` to prevent sending the blocking `WM_WINDOWPOSCHANGING` message to the foreign window thread, speeding up layouts.
+*   **SWP_NOSENDCHANGING Omission:** Initially, `SWP_NOSENDCHANGING` was added to speed up layouts, but it was subsequently removed. Blocking `WM_WINDOWPOSCHANGING` causes modern layout engines (WPF, Electron, XAML) to completely ignore resizing requests, leaving the target window frozen while only the overlay resized. Leaving it out ensures proper target window scaling.
 
 ---
 
