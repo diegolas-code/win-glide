@@ -24,19 +24,22 @@
     - **Glide and Center Protection:** Blocks both glide activation and one-shot centering operations on system UI elements, outputting warning logs.
     - **Integration Test Coverage:** Validated the live exclusion checking mechanism using real system UI controls.
 
-- **Phase 11: Keyboard-Driven Window Resizing (Design Phase Completed)**
-    - **Control Scheme Finalized:** Absolute modifier mapping (`Alt` to grow, `Shift` to shrink).
+- **Phase 11: Keyboard-Driven Window Resizing (Completed)**
+    - **Control Scheme Implemented:** Arrow key movement modified by absolute modifier mapping (`Alt` to grow, `Shift` to shrink).
     - **Configuration Integrated:** Added `resize_speed` support mapping to `config.json`.
-    - **Safety Boundaries Designed:** DPI-scaled $250\text{px}$ floor, work area checks, and off-screen margin rules.
-    - **Overlay Synchronization Optimization:** Coordinated single-transaction layout update and conditional redraw optimization designed to avoid DIB reallocation overhead.
+    - **High-Precision Sizing State:** Implemented fractional accumulators (`width_f32`, `height_f32`) to keep dimensions robust and frame-rate independent.
+    - **Glide Handoff:** Instantly zeros translational velocity when a resize combination starts to prevent drift.
+    - **Safety Boundaries Clamped:** Enforces DPI-scaled $250\text{px}$ floor, active monitor work area bounds, and $150\text{px}$ off-screen margin rules.
+    - **Overlay Synchronization Optimization:** Coordinated single-transaction layout update (`BeginDeferWindowPos`) and conditional redraw optimization to avoid GDI/DIB reallocation overhead.
+    - **Unit Tests Written:** Fully validated resizing coordinate math and clamping limits under multiple mock monitors and modifiers.
 
 ## Immediate Next Steps
-- **Phase 11: Keyboard-Driven Window Resizing (Active Development)**
-    - Implement low-level keyboard hook modifier passthrough in `src/input.rs`.
-    - Implement accumulators, configuration deserialization, and state checks in `src/app.rs` and `src/config.rs`.
-    - Implement resize boundaries math, DPI scaling, and safety limits.
-    - Implement `BeginDeferWindowPos` synchronization and GDI draw optimizations.
-    - Write unit/integration tests for resizing math and bounds clamping.
+- **Phase 12: Productization (The Road to v1.0.0)**
+    - Create a release-optimized build profile.
+    - Implement a system tray icon for easy exit and status visibility.
+    - Research and implement a simple installer.
+    - Final audit of the `config.json` schema for long-term stability.
+    - Finalize user documentation and version bump to v1.0.0.
 
 ## Technical Notes
 - The 1.2MB RAM usage is the stable "warmed-up" baseline after the first activation.
