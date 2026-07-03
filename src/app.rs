@@ -24,6 +24,8 @@ use windows::Win32::UI::WindowsAndMessaging::{
 pub struct App {
     /// Physics simulation state.
     physics: PhysicsState,
+    /// Physics simulation state for resizing.
+    resize_physics: PhysicsState,
     /// Channel for receiving events from the input thread.
     event_rx: Receiver<InputEvent>,
     /// Handle to the input manager for coordination (e.g., shutdown).
@@ -65,8 +67,23 @@ impl App {
         resize_speed: f32,
         input_manager: Arc<InputManager>,
     ) -> Self {
+        // Scale physics properties proportionally for resizing speed
+        let resize_scale = if physics_config.top_speed > 0.0 {
+            resize_speed / physics_config.top_speed
+        } else {
+            1.0
+        };
+
+        let resize_physics_config = PhysicsConfig {
+            acceleration: physics_config.acceleration * resize_scale,
+            friction: physics_config.friction,
+            thrust_friction: physics_config.thrust_friction,
+            top_speed: resize_speed,
+        };
+
         Self {
             physics: PhysicsState::new(physics_config),
+            resize_physics: PhysicsState::new(resize_physics_config),
             event_rx,
             input_manager,
             last_update: Instant::now(),
