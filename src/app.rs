@@ -108,6 +108,8 @@ impl App {
 
             // If a session is active, perform the physics and movement update.
             if self.active_window.is_some() {
+                self.sync_overlay_to_actual_window();
+
                 if self.is_resizing_active() {
                     // Zero out translation velocity to prevent drift during resizing actions
                     self.physics.velocity = Vector2D::default();
@@ -524,7 +526,7 @@ impl App {
     }
 
     /// Performs a discrete-step resize of the target window and overlays it correctly,
-    /// querying the actual final dimensions from the OS to ensure pixel-perfect synchronization.
+    /// relying on background synchronization to correct bounds if application limits are hit.
     fn perform_discrete_resize(&mut self, vk: u32, is_shift_down: bool, is_alt_down: bool) {
         let hwnd = match self.active_window {
             Some(h) => h,
@@ -582,19 +584,102 @@ impl App {
                 new_rect.bottom - new_rect.top,
                 flags,
             );
+        }
 
-            // Immediately query target window's ACTUAL resulting rect from the OS
-            let mut actual_rect = RECT::default();
+        // Draw overlay immediately to the target size for zero latency visual feedback
+        self.window_rect = new_rect;
+        self.pos_x = new_x;
+        self.pos_y = new_y;
+        self.width_f32 = new_w;
+        self.height_f32 = new_h;
+        self.last_sent_rect = new_rect;
+
+        let _ = self.overlay.redraw(new_rect);
+    }
+
+    /// Monitors the target window bounds at 120Hz. If the target window could not be resized
+    /// to the requested size (due to minimum application bounds limits), it detects the mismatch,
+    /// performs a corrective SetWindowPos to undo any position shift, and updates the overlay.
+    fn sync_overlay_to_actual_window(&mut self) {
+        let hwnd = match self.active_window {
+            Some(h) => h,
+            None => return,
+        };
+
+        let mut actual_rect = RECT::default();
+        unsafe {
             if GetWindowRect(hwnd, &mut actual_rect).is_ok() {
-                self.window_rect = actual_rect;
-                self.pos_x = actual_rect.left as f32;
-                self.pos_y = actual_rect.top as f32;
-                self.width_f32 = (actual_rect.right - actual_rect.left) as f32;
-                self.height_f32 = (actual_rect.bottom - actual_rect.top) as f32;
-                self.last_sent_rect = actual_rect;
+                // If the target window size/position differs from what we are tracking:
+                if actual_rect.left != self.window_rect.left
+                    || actual_rect.top != self.window_rect.top
+                    || actual_rect.right != self.window_rect.right
+                    || actual_rect.bottom != self.window_rect.bottom
+                {
+                    let old_rect = self.window_rect;
+                    let actual_w = actual_rect.right - actual_rect.left;
+                    let actual_h = actual_rect.bottom - actual_rect.top;
 
-                // Sync the overlay size and position to the actual rect
-                let _ = self.overlay.redraw(actual_rect);
+                    // Query keyboard state directly to see if Alt is down (shrink mode)
+                    let is_alt_down = GetAsyncKeyState(VK_MENU.0 as i32) as u16 & 0x8000 != 0;
+
+                    let mut corrected_rect = actual_rect;
+                    let mut needs_correction = false;
+
+                    if is_alt_down {
+                        // Left/Right/Up/Down Arrow keys pressed?
+                        let right_pressed = GetAsyncKeyState(0x27) as u16 & 0x8000 != 0;
+                        let down_pressed = GetAsyncKeyState(0x28) as u16 & 0x8000 != 0;
+
+                        if right_pressed {
+                            // Shrink from Left: right edge should stay at old_rect.right.
+                            // If actual width is larger than expected, correct the left coordinate.
+                            let corrected_left = old_rect.right - actual_w;
+                            if actual_rect.left != corrected_left {
+                                corrected_rect.left = corrected_left;
+                                corrected_rect.right = old_rect.right;
+                                needs_correction = true;
+                            }
+                        } else if down_pressed {
+                            // Shrink from Top: bottom edge should stay at old_rect.bottom.
+                            // If actual height is larger than expected, correct the top coordinate.
+                            let corrected_top = old_rect.bottom - actual_h;
+                            if actual_rect.top != corrected_top {
+                                corrected_rect.top = corrected_top;
+                                corrected_rect.bottom = old_rect.bottom;
+                                needs_correction = true;
+                            }
+                        }
+                    }
+
+                    if needs_correction {
+                        let _ = SetWindowPos(
+                            hwnd,
+                            HWND::default(),
+                            corrected_rect.left,
+                            corrected_rect.top,
+                            corrected_rect.right - corrected_rect.left,
+                            corrected_rect.bottom - corrected_rect.top,
+                            SWP_NOACTIVATE | SWP_NOZORDER,
+                        );
+                        actual_rect = corrected_rect;
+                    }
+
+                    self.window_rect = actual_rect;
+                    self.pos_x = actual_rect.left as f32;
+                    self.pos_y = actual_rect.top as f32;
+                    self.width_f32 = (actual_rect.right - actual_rect.left) as f32;
+                    self.height_f32 = (actual_rect.bottom - actual_rect.top) as f32;
+                    self.last_sent_rect = actual_rect;
+
+                    let size_changed = (actual_rect.right - actual_rect.left) != (old_rect.right - old_rect.left)
+                        || (actual_rect.bottom - actual_rect.top) != (old_rect.bottom - old_rect.top);
+
+                    if size_changed {
+                        let _ = self.overlay.redraw(actual_rect);
+                    } else {
+                        let _ = self.overlay.update_position(actual_rect);
+                    }
+                }
             }
         }
     }

@@ -268,6 +268,21 @@ impl Overlay {
         }
     }
 
+    /// Directly updates the position of the overlay (no redraw).
+    pub fn update_position(&self, rect: RECT) -> windows::core::Result<()> {
+        unsafe {
+            windows::Win32::UI::WindowsAndMessaging::SetWindowPos(
+                self.hwnd,
+                HWND::default(),
+                rect.left,
+                rect.top - OVERLAY_TOP_EXTENSION,
+                rect.right - rect.left,
+                (rect.bottom - rect.top) + OVERLAY_TOP_EXTENSION,
+                SWP_NOACTIVATE | SWP_NOZORDER,
+            )
+        }
+    }
+
     /// Shows or hides the overlay.
     pub fn show(&self, visible: bool) {
         let cmd = if visible { SW_SHOW } else { SW_HIDE };
