@@ -26,15 +26,12 @@
 
 - **Phase 11: Keyboard-Driven Window Resizing (Completed)**
     - **Control Scheme Implemented:** Swapped modifiers to use `Shift` to grow/expand, and `Alt` to shrink/reduce.
-    - **Continuous Resize Physics:** Replaced step-based resizing with a dedicated scaled `resize_physics` simulation that applies continuous thrust and decay.
+    - **Discrete Resize Steps:** Replaced continuous resizing with discrete step changes triggered directly on KeyDown events, leveraging OS-native keyboard repeat rates for high snappiness and zero layout stutters.
     - **Corrected Shrink Border Directions:** Corrected opposite edges to pull inward, moving the active border in the direction of the arrow key pressed (e.g. Alt + Down pulls the top border down).
-    - **Resizing Smoothness & 60Hz Throttling:** Throttles external layout calls to 60Hz while running physics at 120Hz, preventing paint backlogs in third-party window queues.
-    - **Sizing Flag Optimizations:** Removed `SWP_NOCOPYBITS` to leverage native BitBlt copy-bits, maintaining compatibility with WPF, Chromium/Electron, and XAML windows.
+    - **Overlay Bounds Synchronization:** Added post-resize queries via `GetWindowRect` to sync the overlay to the target window's actual dimensions. This prevents visual mismatches when windows refuse to shrink past their application-internal minimum limits.
     - **Configuration Integrated:** Added `resize_speed` support mapping to `config.json`.
-    - **High-Precision Sizing State:** Implemented fractional accumulators (`width_f32`, `height_f32`) to keep dimensions robust and frame-rate independent.
-    - **Glide Handoff:** Instantly zeros translational velocity when a resize combination starts to prevent drift.
     - **Safety Boundaries Clamped:** Enforces DPI-scaled $250\text{px}$ floor, active monitor work area bounds, and $150\text{px}$ off-screen margin rules.
-    - **Overlay Synchronization Optimization:** Coordinated single-transaction layout update (`BeginDeferWindowPos`) and conditional redraw optimization to avoid GDI/DIB reallocation overhead.
+    - **Clean Transition Physics:** Instantly zeros translational velocity when resizing begins to prevent window drifting.
     - **Unit Tests Written:** Fully validated resizing coordinate math, deltas, and clamping limits under multiple mock monitors and modifiers.
 
 ## Immediate Next Steps

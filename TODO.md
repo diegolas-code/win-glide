@@ -124,9 +124,8 @@
 - [x] Write unit tests for coordinate resizing calculations and integration tests for overlay-resizing alignment
 - [x] Implement swapped resizing modifiers: Shift to expand, Alt to shrink
 - [x] Implement corrected shrink edge directions (pulling opposite edge)
-- [x] Implement continuous momentum-based resize physics state
-- [x] Implement 60Hz layout updates throttling during resizing to prevent paint queue choking
-- [x] Optimize Win32 sizing flags (remove SWP_NOCOPYBITS) to eliminate rendering blockiness and maintain compatibility
+- [x] Implement discrete-step resizing triggered by KeyDown events to maximize snappiness and eliminate layout stutters
+- [x] Implement overlay synchronization via post-resize GetWindowRect queries to respect target window minimum sizing limits
 - [ ] Commit & Merge to dev
 
 ## Phase 11: Productization (The Road to v1.0.0)
