@@ -36,10 +36,10 @@ pub struct PhysicsConfig {
 impl Default for PhysicsConfig {
     fn default() -> Self {
         Self {
-            acceleration: 4000.0, // High acceleration for "snappy" feel.
-            friction: 10.0,       // High friction for quick stops.
-            thrust_friction: 0.5, // Low friction while active to maintain momentum.
-            top_speed: 3000.0,    // Fast enough to cross 1080p in ~0.6s at max speed.
+            acceleration: 2000.0, // Reduced acceleration for slower gliding
+            friction: 12.0,       // Slightly higher friction for crisper stops
+            thrust_friction: 0.5, // Keep low friction while thrusting
+            top_speed: 1500.0,    // Reduced top speed for slower movement
         }
     }
 }
