@@ -252,6 +252,7 @@ pub fn calculate_centered_rect(window_rect: RECT, work_area: RECT) -> RECT {
 
 /// Computes the resized position and dimensions of a window based on modifier states,
 /// continuous physics deltas (dx, dy), and DPI, clamping to safety boundaries (min size, work area limits, visibility).
+#[allow(clippy::too_many_arguments)]
 pub fn calculate_resized_rect(
     current_x: f32,
     current_y: f32,

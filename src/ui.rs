@@ -65,10 +65,12 @@ fn draw_arrow(
         }
     }
     if let Some(path) = pb.finish() {
-        let mut stroke = Stroke::default();
-        stroke.width = 8.0 * dpi_scale;
-        stroke.line_cap = LineCap::Round;
-        stroke.line_join = LineJoin::Round;
+        let stroke = Stroke {
+            width: 8.0 * dpi_scale,
+            line_cap: LineCap::Round,
+            line_join: LineJoin::Round,
+            ..Stroke::default()
+        };
 
         pixmap.stroke_path(
             &path,

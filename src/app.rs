@@ -641,22 +641,20 @@ impl App {
 
         // Clamp to dynamically detected application sizing limits
         if is_alt_down {
-            if let Some(min_w) = self.detected_min_w {
-                if new_w < min_w {
-                    new_w = min_w;
-                    // Shrink from Left: adjust position to keep right edge stationary
-                    if dx > 0.0 {
-                        new_x = current_x + current_w - new_w;
-                    }
+            if self.detected_min_w.is_some_and(|min_w| new_w < min_w) {
+                let min_w = self.detected_min_w.unwrap();
+                new_w = min_w;
+                // Shrink from Left: adjust position to keep right edge stationary
+                if dx > 0.0 {
+                    new_x = current_x + current_w - new_w;
                 }
             }
-            if let Some(min_h) = self.detected_min_h {
-                if new_h < min_h {
-                    new_h = min_h;
-                    // Shrink from Top: adjust position to keep bottom edge stationary
-                    if dy > 0.0 {
-                        new_y = current_y + current_h - new_h;
-                    }
+            if self.detected_min_h.is_some_and(|min_h| new_h < min_h) {
+                let min_h = self.detected_min_h.unwrap();
+                new_h = min_h;
+                // Shrink from Top: adjust position to keep bottom edge stationary
+                if dy > 0.0 {
+                    new_y = current_y + current_h - new_h;
                 }
             }
         }
