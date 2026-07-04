@@ -136,12 +136,10 @@ impl App {
                     (shift, alt)
                 };
 
-                let is_arrow_down = unsafe {
-                    GetAsyncKeyState(VK_UP.0 as i32) as u16 & 0x8000 != 0
-                        || GetAsyncKeyState(VK_DOWN.0 as i32) as u16 & 0x8000 != 0
-                        || GetAsyncKeyState(VK_LEFT.0 as i32) as u16 & 0x8000 != 0
-                        || GetAsyncKeyState(VK_RIGHT.0 as i32) as u16 & 0x8000 != 0
-                };
+                let is_arrow_down = self.pressed_keys.contains(&(VK_UP.0 as u32))
+                    || self.pressed_keys.contains(&(VK_DOWN.0 as u32))
+                    || self.pressed_keys.contains(&(VK_LEFT.0 as u32))
+                    || self.pressed_keys.contains(&(VK_RIGHT.0 as u32));
 
                 let current_modifiers = (is_shift_down, is_alt_down, is_arrow_down);
                 if current_modifiers != self.last_modifiers_state {
