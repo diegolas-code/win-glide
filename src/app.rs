@@ -15,8 +15,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use windows::Win32::Foundation::{HWND, RECT};
 use windows::Win32::UI::Input::KeyboardAndMouse::{
-    GetAsyncKeyState, VK_CONTROL, VK_DOWN, VK_LEFT, VK_LWIN, VK_MENU, VK_RIGHT, VK_RWIN,
-    VK_SHIFT, VK_UP,
+    GetAsyncKeyState, VK_CONTROL, VK_LWIN, VK_MENU, VK_RWIN, VK_SHIFT,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     BeginDeferWindowPos, DeferWindowPos, EndDeferWindowPos, GetWindowRect, IsZoomed,
@@ -61,8 +60,8 @@ pub struct App {
     detected_min_w: Option<f32>,
     /// Dynamically detected minimum height constraint of the active target window.
     detected_min_h: Option<f32>,
-    /// The modifier states of Shift, Alt, and Arrow keys (is_moving) during the last frame tick.
-    last_modifiers_state: (bool, bool, bool),
+    /// The modifier states of Shift and Alt during the last frame tick.
+    last_modifiers_state: (bool, bool),
     /// Flag to keep the main loop running.
     running: bool,
 }
@@ -93,7 +92,7 @@ impl App {
             pressed_keys: HashSet::new(),
             detected_min_w: None,
             detected_min_h: None,
-            last_modifiers_state: (false, false, false),
+            last_modifiers_state: (false, false),
             running: true,
         }
     }
@@ -136,15 +135,10 @@ impl App {
                     (shift, alt)
                 };
 
-                let is_arrow_down = self.pressed_keys.contains(&(VK_UP.0 as u32))
-                    || self.pressed_keys.contains(&(VK_DOWN.0 as u32))
-                    || self.pressed_keys.contains(&(VK_LEFT.0 as u32))
-                    || self.pressed_keys.contains(&(VK_RIGHT.0 as u32));
-
-                let current_modifiers = (is_shift_down, is_alt_down, is_arrow_down);
+                let current_modifiers = (is_shift_down, is_alt_down);
                 if current_modifiers != self.last_modifiers_state {
                     self.last_modifiers_state = current_modifiers;
-                    let _ = self.overlay.redraw(self.window_rect, is_shift_down, is_alt_down, is_arrow_down);
+                    let _ = self.overlay.redraw(self.window_rect, is_shift_down, is_alt_down);
                 }
 
                 if self.is_resizing_active() {
@@ -419,14 +413,14 @@ impl App {
                     self.dpi = Platform::get_dpi_for_window(hwnd);
                     self.detected_min_w = None;
                     self.detected_min_h = None;
-                    self.last_modifiers_state = (false, false, false);
+                    self.last_modifiers_state = (false, false);
 
                     // Tell the input hooks to start intercepting/modifying input.
                     crate::input::set_session_active(true);
 
                     // Setup the overlay to "tint" the target window.
                     self.overlay.set_owner(hwnd);
-                    let _ = self.overlay.redraw(self.window_rect, false, false, false);
+                    let _ = self.overlay.redraw(self.window_rect, false, false);
                     self.last_sent_rect = self.window_rect;
                     self.overlay.show(true);
                     // Force a message pump to ensure the window shows up immediately
@@ -453,7 +447,7 @@ impl App {
         self.overlay.show(false);
         self.detected_min_w = None;
         self.detected_min_h = None;
-        self.last_modifiers_state = (false, false, false);
+        self.last_modifiers_state = (false, false);
     }
 
     /// Converts held keys into a thrust vector.
@@ -666,7 +660,7 @@ impl App {
         };
 
         // Pre-render the overlay content on the CPU BEFORE the DWM commit transaction
-        let prepared_surface = self.overlay.prepare_surface(new_rect, is_shift_down, is_alt_down, false);
+        let prepared_surface = self.overlay.prepare_surface(new_rect, is_shift_down, is_alt_down);
 
         // Apply changes to target window and overlay in a single atomic transaction
         // (Omit SWP_NOCOPYBITS to allow smooth copy blits)
@@ -813,7 +807,7 @@ impl App {
                         || (actual_rect.bottom - actual_rect.top) != (old_rect.bottom - old_rect.top);
 
                     if size_changed {
-                        let _ = self.overlay.redraw(actual_rect, false, false, false);
+                        let _ = self.overlay.redraw(actual_rect, false, false);
                     } else {
                         let _ = self.overlay.update_position(actual_rect);
                     }

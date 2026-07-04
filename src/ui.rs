@@ -204,7 +204,7 @@ impl Overlay {
 
     /// Prepares the overlay surface on the CPU by rendering into a GDI DIB section.
     /// Returns GDI handles wrapped in a RAII container.
-    pub fn prepare_surface(&self, rect: RECT, is_shift_down: bool, is_alt_down: bool, is_moving: bool) -> Option<PreparedOverlaySurface> {
+    pub fn prepare_surface(&self, rect: RECT, is_shift_down: bool, is_alt_down: bool) -> Option<PreparedOverlaySurface> {
         let width = rect.right - rect.left;
         let height = (rect.bottom - rect.top) + OVERLAY_TOP_EXTENSION;
 
@@ -392,8 +392,6 @@ impl Overlay {
                     "Press the [Arrow keys] to push the window borders outwards."
                 } else if is_alt_down {
                     "Press the [Arrow keys] to pull the window borders inwards."
-                } else if is_moving {
-                    "Press the [Arrow keys] in the direction you want to move the window to"
                 } else {
                     "Press [Arrow keys] to move the window around.\nPress [Shift] and [Arrow keys] to resize the window up.\nPress [Alt] and [Arrow keys] to resize the window down."
                 };
@@ -543,8 +541,8 @@ impl Overlay {
     }
 
     /// Redraws the overlay based on the target window's dimensions.
-    pub fn redraw(&self, rect: RECT, is_shift_down: bool, is_alt_down: bool, is_moving: bool) -> windows::core::Result<()> {
-        if let Some(prepared) = self.prepare_surface(rect, is_shift_down, is_alt_down, is_moving) {
+    pub fn redraw(&self, rect: RECT, is_shift_down: bool, is_alt_down: bool) -> windows::core::Result<()> {
+        if let Some(prepared) = self.prepare_surface(rect, is_shift_down, is_alt_down) {
             self.commit_surface(prepared, rect)
         } else {
             Ok(())
@@ -675,7 +673,7 @@ mod tests {
 
         // Case 1: Window rect is too small to draw arrows (should still prepare surface successfully)
         let small_rect = RECT { left: 100, top: 100, right: 150, bottom: 150 };
-        let prepared_small = overlay.prepare_surface(small_rect, true, false, false);
+        let prepared_small = overlay.prepare_surface(small_rect, true, false);
         assert!(prepared_small.is_some());
         let surf = prepared_small.unwrap();
         assert_eq!(surf.width, 50);
@@ -683,14 +681,14 @@ mod tests {
 
         // Case 2: Window rect is large enough to draw arrows
         let large_rect = RECT { left: 100, top: 100, right: 500, bottom: 500 };
-        let prepared_large = overlay.prepare_surface(large_rect, true, false, false);
+        let prepared_large = overlay.prepare_surface(large_rect, true, false);
         assert!(prepared_large.is_some());
         let surf_large = prepared_large.unwrap();
         assert_eq!(surf_large.width, 400);
         assert_eq!(surf_large.height, 400 + OVERLAY_TOP_EXTENSION);
 
         // Case 3: Window rect is large enough to draw default help text (no modifiers)
-        let prepared_default = overlay.prepare_surface(large_rect, false, false, false);
+        let prepared_default = overlay.prepare_surface(large_rect, false, false);
         assert!(prepared_default.is_some());
         let surf_default = prepared_default.unwrap();
         assert_eq!(surf_default.width, 400);
