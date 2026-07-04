@@ -14,7 +14,9 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use windows::Win32::Foundation::{HWND, RECT};
-use windows::Win32::UI::Input::KeyboardAndMouse::{GetAsyncKeyState, VK_MENU, VK_SHIFT};
+use windows::Win32::UI::Input::KeyboardAndMouse::{
+    GetAsyncKeyState, VK_CONTROL, VK_LWIN, VK_MENU, VK_RWIN, VK_SHIFT,
+};
 use windows::Win32::UI::WindowsAndMessaging::{
     BeginDeferWindowPos, DeferWindowPos, EndDeferWindowPos, GetWindowRect, IsZoomed,
     SWP_NOACTIVATE, SWP_NOCOPYBITS, SWP_NOSIZE, SWP_NOZORDER, SetWindowPos,
@@ -120,8 +122,18 @@ impl App {
                 self.sync_overlay_to_actual_window();
 
                 // Query current modifier key states
-                let is_shift_down = unsafe { GetAsyncKeyState(windows::Win32::UI::Input::KeyboardAndMouse::VK_SHIFT.0 as i32) } as u16 & 0x8000 != 0;
-                let is_alt_down = unsafe { GetAsyncKeyState(windows::Win32::UI::Input::KeyboardAndMouse::VK_MENU.0 as i32) } as u16 & 0x8000 != 0;
+                let is_ctrl_down = unsafe { GetAsyncKeyState(VK_CONTROL.0 as i32) } as u16 & 0x8000 != 0;
+                let is_lwin_down = unsafe { GetAsyncKeyState(VK_LWIN.0 as i32) } as u16 & 0x8000 != 0;
+                let is_rwin_down = unsafe { GetAsyncKeyState(VK_RWIN.0 as i32) } as u16 & 0x8000 != 0;
+                let is_win_down = is_lwin_down || is_rwin_down;
+
+                let (is_shift_down, is_alt_down) = if is_ctrl_down || is_win_down {
+                    (false, false)
+                } else {
+                    let shift = unsafe { GetAsyncKeyState(VK_SHIFT.0 as i32) } as u16 & 0x8000 != 0;
+                    let alt = unsafe { GetAsyncKeyState(VK_MENU.0 as i32) } as u16 & 0x8000 != 0;
+                    (shift, alt)
+                };
 
                 let current_modifiers = (is_shift_down, is_alt_down);
                 if current_modifiers != self.last_modifiers_state {
@@ -550,6 +562,13 @@ impl App {
 
     /// Checks if a resizing modifier is currently active.
     fn is_resizing_active(&mut self) -> bool {
+        let is_ctrl_down = unsafe { GetAsyncKeyState(VK_CONTROL.0 as i32) } as u16 & 0x8000 != 0;
+        let is_lwin_down = unsafe { GetAsyncKeyState(VK_LWIN.0 as i32) } as u16 & 0x8000 != 0;
+        let is_rwin_down = unsafe { GetAsyncKeyState(VK_RWIN.0 as i32) } as u16 & 0x8000 != 0;
+        if is_ctrl_down || is_lwin_down || is_rwin_down {
+            return false;
+        }
+
         let is_shift_down = unsafe { GetAsyncKeyState(VK_SHIFT.0 as i32) } as u16 & 0x8000 != 0;
         let is_alt_down = unsafe { GetAsyncKeyState(VK_MENU.0 as i32) } as u16 & 0x8000 != 0;
         is_shift_down || is_alt_down
