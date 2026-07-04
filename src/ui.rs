@@ -10,6 +10,8 @@ use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, POINT, RECT, SIZE, WPARA
 use windows::Win32::Graphics::Gdi::{
     AC_SRC_ALPHA, AC_SRC_OVER, BITMAPINFO, BITMAPINFOHEADER, BLENDFUNCTION, CreateCompatibleDC,
     CreateDIBSection, DIB_RGB_COLORS, DeleteDC, DeleteObject, SelectObject,
+    CreateFontW, DrawTextW, SetTextColor, SetBkMode, TRANSPARENT,
+    DT_CALCRECT, DT_CENTER, DT_WORDBREAK,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     CW_USEDEFAULT, CreateWindowExW, DefWindowProcW, DeferWindowPos, HDWP, RegisterClassW, SW_HIDE,
@@ -83,6 +85,9 @@ pub struct Overlay {
 
 /// Constant for the vertical extension above the window (the "header").
 pub const OVERLAY_TOP_EXTENSION: i32 = 7;
+
+/// Opacity value for indicators (arrows and text).
+pub const INDICATOR_OPACITY: u8 = 204;
 
 /// Helper struct containing GDI handles for a prepared overlay surface.
 /// Uses RAII to release resources if dropped before commit.
@@ -309,7 +314,7 @@ impl Overlay {
                     && (h - OVERLAY_TOP_EXTENSION as f32) >= 3.0 * arrow_size
                 {
                     let mut white_paint = Paint::default();
-                    white_paint.set_color(Color::from_rgba8(255, 255, 255, 204));
+                    white_paint.set_color(Color::from_rgba8(255, 255, 255, INDICATOR_OPACITY));
                     white_paint.anti_alias = true;
 
                     let top_direction = if is_shift_down { ArrowDirection::Up } else { ArrowDirection::Down };
@@ -364,6 +369,117 @@ impl Overlay {
             }
 
             let old_bitmap = SelectObject(mem_dc, bitmap);
+
+            // --- Draw Help Text ---
+            // Calculate margins & sizes for text safe bounding box
+            let dpi = {
+                let screen_dc = windows::Win32::Graphics::Gdi::GetDC(None);
+                let res = windows::Win32::Graphics::Gdi::GetDeviceCaps(screen_dc, windows::Win32::Graphics::Gdi::LOGPIXELSX);
+                windows::Win32::Graphics::Gdi::ReleaseDC(None, screen_dc);
+                res as u32
+            };
+            let dpi_scale = dpi as f32 / 96.0;
+            let arrow_size = 36.0 * dpi_scale;
+            let margin = 30.0 * dpi_scale;
+
+            let target_left = (margin + arrow_size + 10.0) as i32;
+            let target_right = (width as f32 - margin - arrow_size - 10.0) as i32;
+            let target_top = (OVERLAY_TOP_EXTENSION as f32 + margin + arrow_size + 10.0) as i32;
+            let target_bottom = (height as f32 - margin - arrow_size - 10.0) as i32;
+
+            if target_right > target_left && target_bottom > target_top {
+                let text_str = if is_shift_down {
+                    "Press Arrow Keys to push borders outwards."
+                } else if is_alt_down {
+                    "Press Arrow Keys to pull borders inwards."
+                } else {
+                    "Press Arrow Keys to move the window.\nHold Shift + Arrow Keys to expand borders.\nHold Alt + Arrow Keys to shrink borders."
+                };
+
+                let mut text_utf16: Vec<u16> = text_str.encode_utf16().collect();
+
+                let font_height = -((18.0 * dpi_scale).round() as i32);
+                let font = CreateFontW(
+                    font_height,
+                    0,
+                    0,
+                    0,
+                    700, // FW_BOLD
+                    0,
+                    0,
+                    0,
+                    0, // DEFAULT_CHARSET
+                    0,
+                    0,
+                    0,
+                    0,
+                    windows::core::w!("Segoe UI"),
+                );
+
+                if !font.is_invalid() {
+                    let old_font = SelectObject(mem_dc, font);
+                    let _ = SetTextColor(mem_dc, windows::Win32::Foundation::COLORREF(0x00ffffff));
+                    let _ = SetBkMode(mem_dc, TRANSPARENT);
+
+                    let mut rect = RECT {
+                        left: target_left,
+                        top: target_top,
+                        right: target_right,
+                        bottom: target_bottom,
+                    };
+
+                    // 1. Calculate height needed
+                    let _ = DrawTextW(
+                        mem_dc,
+                        &mut text_utf16,
+                        &mut rect,
+                        DT_CENTER | DT_WORDBREAK | DT_CALCRECT,
+                    );
+
+                    // 2. Center vertically
+                    let text_height = rect.bottom - rect.top;
+                    let available_height = target_bottom - target_top;
+                    let y_offset = ((available_height - text_height) / 2).max(0);
+
+                    let mut draw_rect = RECT {
+                        left: target_left,
+                        top: target_top + y_offset,
+                        right: target_right,
+                        bottom: target_top + y_offset + text_height,
+                    };
+
+                    // 3. Draw text
+                    let _ = DrawTextW(
+                        mem_dc,
+                        &mut text_utf16,
+                        &mut draw_rect,
+                        DT_CENTER | DT_WORDBREAK,
+                    );
+
+                    let _ = SelectObject(mem_dc, old_font);
+                    let _ = DeleteObject(font);
+                }
+            }
+
+            // --- Alpha Channel Post-Processing ---
+            let slice = std::slice::from_raw_parts_mut(
+                bits as *mut u8,
+                (width * height * 4) as usize,
+            );
+            for offset in (0..slice.len()).step_by(4) {
+                let b = slice[offset];
+                let g = slice[offset + 1];
+                let r = slice[offset + 2];
+                let a = &mut slice[offset + 3];
+                if *a == 0 && (r > 0 || g > 0 || b > 0) {
+                    let intensity = r.max(g).max(b);
+                    *a = ((intensity as f32) * (INDICATOR_OPACITY as f32 / 255.0)) as u8;
+                    slice[offset] = 255;
+                    slice[offset + 1] = 255;
+                    slice[offset + 2] = 255;
+                }
+            }
+
             windows::Win32::Graphics::Gdi::ReleaseDC(None, screen_dc);
 
             Some(PreparedOverlaySurface {
@@ -574,5 +690,12 @@ mod tests {
         let surf_large = prepared_large.unwrap();
         assert_eq!(surf_large.width, 400);
         assert_eq!(surf_large.height, 400 + OVERLAY_TOP_EXTENSION);
+
+        // Case 3: Window rect is large enough to draw default help text (no modifiers)
+        let prepared_default = overlay.prepare_surface(large_rect, false, false);
+        assert!(prepared_default.is_some());
+        let surf_default = prepared_default.unwrap();
+        assert_eq!(surf_default.width, 400);
+        assert_eq!(surf_default.height, 400 + OVERLAY_TOP_EXTENSION);
     }
 }
