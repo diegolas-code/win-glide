@@ -11,7 +11,7 @@ use windows::Win32::Graphics::Gdi::{
     AC_SRC_ALPHA, AC_SRC_OVER, BITMAPINFO, BITMAPINFOHEADER, BLENDFUNCTION, CreateCompatibleDC,
     CreateDIBSection, DIB_RGB_COLORS, DeleteDC, DeleteObject, SelectObject,
     CreateFontW, DrawTextW, SetTextColor, SetBkMode, TRANSPARENT,
-    DT_CALCRECT, DT_CENTER, DT_WORDBREAK,
+    DT_CALCRECT, DT_CENTER, DT_WORDBREAK, ANTIALIASED_QUALITY,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     CW_USEDEFAULT, CreateWindowExW, DefWindowProcW, DeferWindowPos, HDWP, RegisterClassW, SW_HIDE,
@@ -204,7 +204,7 @@ impl Overlay {
 
     /// Prepares the overlay surface on the CPU by rendering into a GDI DIB section.
     /// Returns GDI handles wrapped in a RAII container.
-    pub fn prepare_surface(&self, rect: RECT, is_shift_down: bool, is_alt_down: bool) -> Option<PreparedOverlaySurface> {
+    pub fn prepare_surface(&self, rect: RECT, is_shift_down: bool, is_alt_down: bool, is_moving: bool) -> Option<PreparedOverlaySurface> {
         let width = rect.right - rect.left;
         let height = (rect.bottom - rect.top) + OVERLAY_TOP_EXTENSION;
 
@@ -389,11 +389,13 @@ impl Overlay {
 
             if target_right > target_left && target_bottom > target_top {
                 let text_str = if is_shift_down {
-                    "Press Arrow Keys to push borders outwards."
+                    "Press the [Arrow keys] to push the window borders outwards."
                 } else if is_alt_down {
-                    "Press Arrow Keys to pull borders inwards."
+                    "Press the [Arrow keys] to pull the window borders inwards."
+                } else if is_moving {
+                    "Press the [Arrow keys] in the direction you want to move the window to"
                 } else {
-                    "Press Arrow Keys to move the window.\nHold Shift + Arrow Keys to expand borders.\nHold Alt + Arrow Keys to shrink borders."
+                    "Press [Arrow keys] to move the window around.\nPress [Shift] and [Arrow keys] to resize the window up.\nPress [Alt] and [Arrow keys] to resize the window down."
                 };
 
                 let mut text_utf16: Vec<u16> = text_str.encode_utf16().collect();
@@ -404,14 +406,14 @@ impl Overlay {
                     0,
                     0,
                     0,
-                    700, // FW_BOLD
+                    400, // FW_NORMAL (non-bold)
                     0,
                     0,
                     0,
                     0, // DEFAULT_CHARSET
                     0,
                     0,
-                    0,
+                    ANTIALIASED_QUALITY.0 as u32,
                     0,
                     windows::core::w!("Segoe UI"),
                 );
@@ -468,15 +470,11 @@ impl Overlay {
             );
             for offset in (0..slice.len()).step_by(4) {
                 let b = slice[offset];
-                let g = slice[offset + 1];
-                let r = slice[offset + 2];
                 let a = &mut slice[offset + 3];
-                if *a == 0 && (r > 0 || g > 0 || b > 0) {
-                    let intensity = r.max(g).max(b);
-                    *a = ((intensity as f32) * (INDICATOR_OPACITY as f32 / 255.0)) as u8;
-                    slice[offset] = 255;
-                    slice[offset + 1] = 255;
-                    slice[offset + 2] = 255;
+                if b > 0 {
+                    let intensity = b as f32 / 255.0;
+                    let bg_alpha = *a;
+                    *a = (bg_alpha as f32 + (INDICATOR_OPACITY as f32 - bg_alpha as f32) * intensity) as u8;
                 }
             }
 
@@ -545,8 +543,8 @@ impl Overlay {
     }
 
     /// Redraws the overlay based on the target window's dimensions.
-    pub fn redraw(&self, rect: RECT, is_shift_down: bool, is_alt_down: bool) -> windows::core::Result<()> {
-        if let Some(prepared) = self.prepare_surface(rect, is_shift_down, is_alt_down) {
+    pub fn redraw(&self, rect: RECT, is_shift_down: bool, is_alt_down: bool, is_moving: bool) -> windows::core::Result<()> {
+        if let Some(prepared) = self.prepare_surface(rect, is_shift_down, is_alt_down, is_moving) {
             self.commit_surface(prepared, rect)
         } else {
             Ok(())
@@ -677,7 +675,7 @@ mod tests {
 
         // Case 1: Window rect is too small to draw arrows (should still prepare surface successfully)
         let small_rect = RECT { left: 100, top: 100, right: 150, bottom: 150 };
-        let prepared_small = overlay.prepare_surface(small_rect, true, false);
+        let prepared_small = overlay.prepare_surface(small_rect, true, false, false);
         assert!(prepared_small.is_some());
         let surf = prepared_small.unwrap();
         assert_eq!(surf.width, 50);
@@ -685,14 +683,14 @@ mod tests {
 
         // Case 2: Window rect is large enough to draw arrows
         let large_rect = RECT { left: 100, top: 100, right: 500, bottom: 500 };
-        let prepared_large = overlay.prepare_surface(large_rect, true, false);
+        let prepared_large = overlay.prepare_surface(large_rect, true, false, false);
         assert!(prepared_large.is_some());
         let surf_large = prepared_large.unwrap();
         assert_eq!(surf_large.width, 400);
         assert_eq!(surf_large.height, 400 + OVERLAY_TOP_EXTENSION);
 
         // Case 3: Window rect is large enough to draw default help text (no modifiers)
-        let prepared_default = overlay.prepare_surface(large_rect, false, false);
+        let prepared_default = overlay.prepare_surface(large_rect, false, false, false);
         assert!(prepared_default.is_some());
         let surf_default = prepared_default.unwrap();
         assert_eq!(surf_default.width, 400);
