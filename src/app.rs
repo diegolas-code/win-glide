@@ -77,10 +77,10 @@ impl App {
         input_manager: Arc<InputManager>,
     ) -> Self {
         let resize_physics_config = PhysicsConfig {
-            acceleration: resize_speed * 1.5,
-            friction: 10.0,
+            acceleration: resize_speed * 5.0, // Snappy response
+            friction: 12.0,                   // Quick, precise stops
             thrust_friction: 0.5,
-            top_speed: resize_speed,
+            top_speed: resize_speed * 2.5, // Fluid glide speed
         };
 
         Self {
