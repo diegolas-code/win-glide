@@ -72,19 +72,18 @@ pub struct App {
 impl App {
     pub fn new(
         event_rx: Receiver<InputEvent>,
-        physics_config: PhysicsConfig,
-        resize_speed: f32,
+        config: &crate::config::Config,
         input_manager: Arc<InputManager>,
     ) -> Self {
-        let resize_physics_config = PhysicsConfig {
-            acceleration: resize_speed * 5.0, // Snappy response
-            friction: 12.0,                   // Quick, precise stops
+        let resize_physics_config = config.resize_physics.unwrap_or(PhysicsConfig {
+            acceleration: config.resize_speed * 5.0, // Snappy response
+            friction: 15.0,                          // Balanced stop
             thrust_friction: 0.5,
-            top_speed: resize_speed * 2.5, // Fluid glide speed
-        };
+            top_speed: config.resize_speed * 2.5, // Fluid glide speed
+        });
 
         Self {
-            physics: PhysicsState::new(physics_config),
+            physics: PhysicsState::new(config.physics),
             resize_physics: PhysicsState::new(resize_physics_config),
             event_rx,
             input_manager,

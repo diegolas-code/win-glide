@@ -20,6 +20,8 @@ pub struct Config {
     pub hotkey: HotkeyConfig,
     /// Global hotkey configuration for centering the window.
     pub center_hotkey: HotkeyConfig,
+    /// Optional custom physics parameters for resizing.
+    pub resize_physics: Option<PhysicsConfig>,
 }
 
 fn default_resize_speed() -> f32 {
@@ -106,6 +108,7 @@ impl Default for Config {
                 modifiers: 0x0008 | 0x0001, // MOD_WIN | MOD_ALT
                 vk: 0x43,                   // C
             },
+            resize_physics: None,
         }
     }
 }
@@ -210,5 +213,41 @@ mod tests {
         assert!(config.is_ok());
         let config = config.unwrap();
         assert_eq!(config.resize_speed, 750.0);
+    }
+
+    #[test]
+    fn test_config_deserialization_with_resize_physics() {
+        let json_data = r#"{
+            "physics": {
+                "acceleration": 4000.0,
+                "friction": 10.0,
+                "thrust_friction": 0.5,
+                "top_speed": 4000.0
+            },
+            "resize_speed": 600.0,
+            "resize_physics": {
+                "acceleration": 2000.0,
+                "friction": 25.0,
+                "thrust_friction": 0.3,
+                "top_speed": 1200.0
+            },
+            "hotkey": {
+                "modifiers": 3,
+                "vk": 121
+            },
+            "center_hotkey": {
+                "modifiers": 9,
+                "vk": 67
+            }
+        }"#;
+        let config: Result<Config, _> = serde_json::from_str(json_data);
+        assert!(config.is_ok());
+        let config = config.unwrap();
+        assert!(config.resize_physics.is_some());
+        let resize_phys = config.resize_physics.unwrap();
+        assert_eq!(resize_phys.acceleration, 2000.0);
+        assert_eq!(resize_phys.friction, 25.0);
+        assert_eq!(resize_phys.thrust_friction, 0.3);
+        assert_eq!(resize_phys.top_speed, 1200.0);
     }
 }

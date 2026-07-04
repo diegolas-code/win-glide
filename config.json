@@ -6,6 +6,12 @@
     "top_speed": 4000.0
   },
   "resize_speed": 600.0,
+  "resize_physics": {
+    "acceleration": 3000.0,
+    "friction": 15.0,
+    "thrust_friction": 0.5,
+    "top_speed": 1500.0
+  },
   "hotkey": {
     "modifiers": 3,
     "vk": 121

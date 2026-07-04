@@ -111,7 +111,7 @@ fn main() -> windows::core::Result<()> {
     };
 
     // Initialize the main application with the receiver end of the event channel.
-    let mut app = App::new(rx, config.physics, config.resize_speed, input_manager);
+    let mut app = App::new(rx, &config, input_manager);
 
     if !crate::platform::Platform::is_admin() {
         println!("INFO: win-glide is running with standard user privileges.");
