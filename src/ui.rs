@@ -35,28 +35,29 @@ fn draw_arrow(
     direction: ArrowDirection,
     dpi_scale: f32,
 ) {
-    let half = size / 2.0;
+    let half_w = size / 2.0;
+    let half_h = size / 4.0;
     let mut pb = tiny_skia::PathBuilder::new();
     match direction {
         ArrowDirection::Up => {
-            pb.move_to(center_x - half, center_y + half);
-            pb.line_to(center_x, center_y - half);
-            pb.line_to(center_x + half, center_y + half);
+            pb.move_to(center_x - half_w, center_y + half_h);
+            pb.line_to(center_x, center_y - half_h);
+            pb.line_to(center_x + half_w, center_y + half_h);
         }
         ArrowDirection::Down => {
-            pb.move_to(center_x - half, center_y - half);
-            pb.line_to(center_x, center_y + half);
-            pb.line_to(center_x + half, center_y - half);
+            pb.move_to(center_x - half_w, center_y - half_h);
+            pb.line_to(center_x, center_y + half_h);
+            pb.line_to(center_x + half_w, center_y - half_h);
         }
         ArrowDirection::Left => {
-            pb.move_to(center_x + half, center_y - half);
-            pb.line_to(center_x - half, center_y);
-            pb.line_to(center_x + half, center_y + half);
+            pb.move_to(center_x + half_h, center_y - half_w);
+            pb.line_to(center_x - half_h, center_y);
+            pb.line_to(center_x + half_h, center_y + half_w);
         }
         ArrowDirection::Right => {
-            pb.move_to(center_x - half, center_y - half);
-            pb.line_to(center_x + half, center_y);
-            pb.line_to(center_x - half, center_y + half);
+            pb.move_to(center_x - half_h, center_y - half_w);
+            pb.line_to(center_x + half_h, center_y);
+            pb.line_to(center_x - half_h, center_y + half_w);
         }
     }
     if let Some(path) = pb.finish() {
@@ -299,7 +300,7 @@ impl Overlay {
                     res as u32
                 };
                 let dpi_scale = dpi as f32 / 96.0;
-                let arrow_size = 48.0 * dpi_scale;
+                let arrow_size = 36.0 * dpi_scale;
                 let margin = 30.0 * dpi_scale;
 
                 // Draw arrows if Alt or Shift is down and window is large enough
