@@ -562,6 +562,9 @@ impl Overlay {
                                 *a = (bg_alpha as f32
                                     + (INDICATOR_OPACITY as f32 - bg_alpha as f32) * intensity)
                                     as u8;
+                                slice[offset] = 255; // Blue
+                                slice[offset + 1] = 255; // Green
+                                slice[offset + 2] = 255; // Red
                             }
                         }
                     }
