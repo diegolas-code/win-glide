@@ -196,7 +196,7 @@ impl Overlay {
 
     /// Prepares the overlay surface on the CPU by rendering into a GDI DIB section.
     /// Returns GDI handles wrapped in a RAII container.
-    pub fn prepare_surface(&self, rect: RECT) -> Option<PreparedOverlaySurface> {
+    pub fn prepare_surface(&self, rect: RECT, is_shift_down: bool, is_alt_down: bool) -> Option<PreparedOverlaySurface> {
         let width = rect.right - rect.left;
         let height = (rect.bottom - rect.top) + OVERLAY_TOP_EXTENSION;
 
@@ -288,6 +288,72 @@ impl Overlay {
                         None,
                     );
                 }
+
+                // Get actual DPI to scale arrows correctly
+                let dpi = {
+                    let screen_dc = windows::Win32::Graphics::Gdi::GetDC(None);
+                    let res = windows::Win32::Graphics::Gdi::GetDeviceCaps(screen_dc, windows::Win32::Graphics::Gdi::LOGPIXELSX);
+                    windows::Win32::Graphics::Gdi::ReleaseDC(None, screen_dc);
+                    res as u32
+                };
+                let dpi_scale = dpi as f32 / 96.0;
+                let arrow_size = 48.0 * dpi_scale;
+                let margin = 15.0 * dpi_scale;
+
+                // Draw arrows if Alt or Shift is down and window is large enough
+                if (is_shift_down || is_alt_down)
+                    && w >= 3.0 * arrow_size
+                    && (h - OVERLAY_TOP_EXTENSION as f32) >= 3.0 * arrow_size
+                {
+                    let mut white_paint = Paint::default();
+                    white_paint.set_color(Color::from_rgba8(255, 255, 255, 255));
+                    white_paint.anti_alias = true;
+
+                    let top_direction = if is_shift_down { ArrowDirection::Up } else { ArrowDirection::Down };
+                    let bottom_direction = if is_shift_down { ArrowDirection::Down } else { ArrowDirection::Up };
+                    let left_direction = if is_shift_down { ArrowDirection::Left } else { ArrowDirection::Right };
+                    let right_direction = if is_shift_down { ArrowDirection::Right } else { ArrowDirection::Left };
+
+                    // Top Arrow
+                    draw_arrow(
+                        &mut pixmap,
+                        &white_paint,
+                        w / 2.0,
+                        OVERLAY_TOP_EXTENSION as f32 + margin + arrow_size / 2.0,
+                        arrow_size,
+                        top_direction,
+                    );
+
+                    // Bottom Arrow
+                    draw_arrow(
+                        &mut pixmap,
+                        &white_paint,
+                        w / 2.0,
+                        h - margin - arrow_size / 2.0,
+                        arrow_size,
+                        bottom_direction,
+                    );
+
+                    // Left Arrow
+                    draw_arrow(
+                        &mut pixmap,
+                        &white_paint,
+                        margin + arrow_size / 2.0,
+                        OVERLAY_TOP_EXTENSION as f32 + (h - OVERLAY_TOP_EXTENSION as f32) / 2.0,
+                        arrow_size,
+                        left_direction,
+                    );
+
+                    // Right Arrow
+                    draw_arrow(
+                        &mut pixmap,
+                        &white_paint,
+                        w - margin - arrow_size / 2.0,
+                        OVERLAY_TOP_EXTENSION as f32 + (h - OVERLAY_TOP_EXTENSION as f32) / 2.0,
+                        arrow_size,
+                        right_direction,
+                    );
+                }
             }
 
             let old_bitmap = SelectObject(mem_dc, bitmap);
@@ -356,8 +422,8 @@ impl Overlay {
     }
 
     /// Redraws the overlay based on the target window's dimensions.
-    pub fn redraw(&self, rect: RECT) -> windows::core::Result<()> {
-        if let Some(prepared) = self.prepare_surface(rect) {
+    pub fn redraw(&self, rect: RECT, is_shift_down: bool, is_alt_down: bool) -> windows::core::Result<()> {
+        if let Some(prepared) = self.prepare_surface(rect, is_shift_down, is_alt_down) {
             self.commit_surface(prepared, rect)
         } else {
             Ok(())

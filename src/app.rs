@@ -394,7 +394,7 @@ impl App {
 
                     // Setup the overlay to "tint" the target window.
                     self.overlay.set_owner(hwnd);
-                    let _ = self.overlay.redraw(self.window_rect);
+                    let _ = self.overlay.redraw(self.window_rect, false, false);
                     self.last_sent_rect = self.window_rect;
                     self.overlay.show(true);
                     // Force a message pump to ensure the window shows up immediately
@@ -626,7 +626,7 @@ impl App {
         };
 
         // Pre-render the overlay content on the CPU BEFORE the DWM commit transaction
-        let prepared_surface = self.overlay.prepare_surface(new_rect);
+        let prepared_surface = self.overlay.prepare_surface(new_rect, is_shift_down, is_alt_down);
 
         // Apply changes to target window and overlay in a single atomic transaction
         // (Omit SWP_NOCOPYBITS to allow smooth copy blits)
@@ -773,7 +773,7 @@ impl App {
                         || (actual_rect.bottom - actual_rect.top) != (old_rect.bottom - old_rect.top);
 
                     if size_changed {
-                        let _ = self.overlay.redraw(actual_rect);
+                        let _ = self.overlay.redraw(actual_rect, false, false);
                     } else {
                         let _ = self.overlay.update_position(actual_rect);
                     }
