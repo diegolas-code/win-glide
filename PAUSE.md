@@ -13,6 +13,8 @@
     - **Elevated Window Safety:** Proactively detects and skips high-integrity windows (like Task Manager) to prevent OS access errors.
     - **Stability Focus:** Chose a stable 120Hz polling loop over blocking "Sleep Mode" to ensure perfect UI responsiveness and message pumping.
     - **Text Background Fix:** Checked the Red channel (`slice[offset + 2] > 0`) to correctly isolate text pixels from the blue background layout and force them to pure white (`RGB = 255`), resolving the gray background tint halo under text.
+    - **OS Scheduler Resolution Tuning:** Instantiates a `TimerResolutionGuard` RAII guard on application startup that calls `timeBeginPeriod(1)` to request a 1ms scheduler resolution on Windows, and calls `timeEndPeriod(1)` on drop. This eliminates 15.6ms scheduler sleep overshoots, stabilizing the loop rate at exactly 120 FPS.
+    - **Hybrid Sleep/Yield Frame Rate Capping:** Capping frame rate using a hybrid model: calls `std::thread::sleep` if remaining time > 2ms (sleeping for `remaining - 1ms`), and busy-loops using `std::thread::yield_now()` for the final sub-millisecond portion to guarantee sub-millisecond precision with near-zero CPU overhead.
 
 - **Phase 9: Window Center Hotkey (Completed)**
     - **Dual Hotkey Registration:** Integrated a second global hotkey (`Win + Alt + C`) routed through the application message loop.
