@@ -136,6 +136,7 @@
 - [x] Update `prepare_surface` and `redraw` in `src/ui.rs` to accept `is_shift_down` and `is_alt_down` and draw DPI-scaled arrow paths
 - [x] Add `last_modifiers_state` tracking to `App` in `src/app.rs` and trigger synchronous overlay redraws on modifier change in the main loop
 - [x] Write unit tests for overlay arrow rendering and suppression
+- [x] Implement DPI-scaled overlay help text legends and GDI alpha-channel post-processing reconstruction
 - [ ] Commit & Merge to dev
 
 ## Phase 11: Productization (The Road to v1.0.0)

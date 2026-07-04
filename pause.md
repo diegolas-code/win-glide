@@ -36,6 +36,7 @@
     - **Clean Transition Physics:** Instantly zeros translational velocity when resizing begins to prevent window drifting.
     - **Unit Tests Written:** Fully validated resizing coordinate math, deltas, and clamping limits under multiple mock monitors and modifiers.
     - **Overlay Resize Indicators:** Draws DPI-scaled bold white chevron indicators centered inside borders on the overlay at 80% opacity. Displays outward chevrons for Shift-Expansion and inward chevrons for Alt-Shrinking, offset by a 30px margin, with automatic suppression if the window is too small. Redraws dynamically using 120Hz key state polling to respond immediately on modifier key press/release. Prevents activation flicker by suppressing indicators when `Ctrl` or `Win` modifier keys are held down.
+    - **Overlay Help Legends:** Renders centered, regular weight (non-bold, i.e., `400`), DPI-scaled "Segoe UI" help instructions at 18px size. Key names are formatted inside brackets (e.g. `[Shift]`, `[Alt]`, `[Arrow keys]`). The instructions dynamically adapt: displays detailed guides when idle, a simplified direction instruction when moving, and outward/inward guides when `Shift`/`Alt` are held. Features GDI `ANTIALIASED_QUALITY` grayscale smoothing and a custom alpha reconstruction loop using the blue channel `b` to eliminate text border pixelation. Shares the exact same 80% opacity value (`INDICATOR_OPACITY = 204`) as the chevrons.
 
 ## Immediate Next Steps
 - **Phase 12: Productization (The Road to v1.0.0)**
