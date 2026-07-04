@@ -37,6 +37,11 @@
     - **Unit Tests Written:** Fully validated resizing coordinate math, deltas, and clamping limits under multiple mock monitors and modifiers.
 
 ## Immediate Next Steps
+- **Phase 10 Extension: Overlay Resize Indicators**
+    - Implement `ArrowDirection` and vector paths in `src/ui.rs`.
+    - Update `prepare_surface` and `redraw` to support drawing arrow indicators centered inside borders.
+    - Implement modifier change key detection and trigger synchronous redraws in `App::run`.
+    - Write unit tests to verify overlay indicator drawing and size suppression.
 - **Phase 12: Productization (The Road to v1.0.0)**
     - Create a release-optimized build profile.
     - Implement a system tray icon for easy exit and status visibility.

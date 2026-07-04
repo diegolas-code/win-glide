@@ -23,6 +23,7 @@ win-glide is a high-performance Windows utility for rapid, momentum-based window
 ## 5. Visuals & UI
 *   **Overlay:** A 3px transparent layered window border rendered via `tiny-skia`.
 *   **Tracking:** The border must follow the active window's bounding box in real-time.
+*   **Resize Indicators:** Show DPI-scaled 48px bold white arrow indicators centered inside the window borders on the overlay when `Shift` (Expand) or `Alt` (Shrink) is pressed, pointing in the direction of the border transformation.
 
 ## 6. Technical Stack
 *   **Language:** Rust (Edition 2024).
