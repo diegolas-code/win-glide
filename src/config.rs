@@ -13,10 +13,17 @@ use std::path::Path;
 pub struct Config {
     /// Physics parameters (acceleration, friction, top speed).
     pub physics: PhysicsConfig,
+    /// Resize speed in pixels per second.
+    #[serde(default = "default_resize_speed")]
+    pub resize_speed: f32,
     /// Global hotkey configuration.
     pub hotkey: HotkeyConfig,
     /// Global hotkey configuration for centering the window.
     pub center_hotkey: HotkeyConfig,
+}
+
+fn default_resize_speed() -> f32 {
+    600.0
 }
 
 /// Structure for defining the activation hotkey.
@@ -88,6 +95,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             physics: PhysicsConfig::default(),
+            resize_speed: 600.0,
             hotkey: HotkeyConfig {
                 // Default to Ctrl + Alt + F10
                 modifiers: 0x0002 | 0x0001, // MOD_CONTROL | MOD_ALT
@@ -177,5 +185,30 @@ mod tests {
             vk: 0x43,                   // C
         };
         assert_eq!(hk_center.to_string(), "Win+Alt+C");
+    }
+
+    #[test]
+    fn test_config_deserialization_with_resize_speed() {
+        let json_data = r#"{
+            "physics": {
+                "acceleration": 4000.0,
+                "friction": 10.0,
+                "thrust_friction": 0.5,
+                "top_speed": 4000.0
+            },
+            "resize_speed": 750.0,
+            "hotkey": {
+                "modifiers": 3,
+                "vk": 121
+            },
+            "center_hotkey": {
+                "modifiers": 9,
+                "vk": 67
+            }
+        }"#;
+        let config: Result<Config, _> = serde_json::from_str(json_data);
+        assert!(config.is_ok());
+        let config = config.unwrap();
+        assert_eq!(config.resize_speed, 750.0);
     }
 }

@@ -111,11 +111,40 @@
 - [x] Add unit/integration test `test_live_window_manager_is_taskbar_or_start_menu`
 - [ ] Commit & Merge to dev
 
-## Phase 10: Productization (The Road to v1.0.0)
+## Phase 10: Keyboard-Driven Window Resizing
+- [x] Configure keyboard hook `keyboard_proc` in `src/input.rs` to allow `VK_MENU` and `VK_SHIFT` to pass through, keeping arrow key consumption active during active sessions
+- [x] Add `resize_speed: f32` to the `Config` struct in `src/config.rs` and load it from `config.json` (default `600.0` px/s)
+- [x] Add `width_f32` and `height_f32` accumulators to `App` in `src/app.rs` and initialize them on session activation
+- [x] Implement `GetAsyncKeyState` modifier checks inside `App::process_events` on the main loop thread
+- [x] Implement glide-resize handoff logic to zero translation velocity when a resize modifier is held with an arrow key
+- [x] Implement resizing coordinate math for Alt-growth and Shift-shrink
+- [x] Implement safety bounds checks (DPI-scaled minimum size 350x350px, monitor work area limits, and virtual desktop visibility margin)
+- [x] Integrate coordinated window and overlay movement via a single `BeginDeferWindowPos` transaction
+- [x] Optimize overlay re-rendering to only call `Overlay::redraw` when integer size dimensions change
+- [x] Write unit tests for coordinate resizing calculations and integration tests for overlay-resizing alignment
+- [x] Implement swapped resizing modifiers: Shift to expand, Alt to shrink
+- [x] Implement corrected shrink edge directions (pulling opposite edge)
+- [x] Implement continuous momentum-based resize physics state (Completed; later replaced by discrete step-based resizing)
+- [x] Implement 60Hz layout updates throttling during resizing (Completed; later replaced by 120Hz background monitoring)
+- [x] Optimize Win32 sizing flags (remove SWP_NOCOPYBITS) to eliminate rendering blockiness and maintain compatibility
+- [x] Implement discrete-step resizing triggered by KeyDown events to maximize snappiness and eliminate layout stutters
+- [x] Implement overlay synchronization and position correction via 120Hz background monitoring to respect target window minimum sizes and prevent position shifting
+- [x] Implement coordinated layout updates via DeferWindowPos during discrete resizing to eliminate visual dragging lag
+- [x] Implement split-phase rendering (pre-render prepare + DWM commit) to eliminate 1-frame expansion lag
+- [x] Implement dynamic minimum sizing limits caching and 4-way position shift correction to handle application min bounds
+- [x] Implement `ArrowDirection` enum and vector path drawing helpers in `src/ui.rs`
+- [x] Update `prepare_surface` and `redraw` in `src/ui.rs` to accept `is_shift_down` and `is_alt_down` and draw DPI-scaled arrow paths
+- [x] Add `last_modifiers_state` tracking to `App` in `src/app.rs` and trigger synchronous overlay redraws on modifier change in the main loop
+- [x] Write unit tests for overlay arrow rendering and suppression
+- [x] Implement DPI-scaled overlay help text legends and GDI alpha-channel post-processing reconstruction
+- [ ] Commit & Merge to dev
+
+## Phase 11: Productization (The Road to v1.0.0)
 - [ ] Create a release-optimized build profile
 - [ ] Implement a system tray icon for easy exit and status visibility
 - [ ] Research and implement a simple installer (e.g., Inno Setup or a WiX-based MSI)
 - [ ] Final audit of the `config.json` schema for long-term stability
 - [ ] Finalize user documentation and version bump to v1.0.0
 - [ ] Commit & Merge to dev
+
 

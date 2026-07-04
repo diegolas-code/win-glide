@@ -250,6 +250,113 @@ pub fn calculate_centered_rect(window_rect: RECT, work_area: RECT) -> RECT {
     }
 }
 
+/// Computes the resized position and dimensions of a window based on modifier states,
+/// continuous physics deltas (dx, dy), and DPI, clamping to safety boundaries (min size, work area limits, visibility).
+pub fn calculate_resized_rect(
+    current_x: f32,
+    current_y: f32,
+    current_w: f32,
+    current_h: f32,
+    is_shift_down: bool,
+    is_alt_down: bool,
+    dx: f32,
+    dy: f32,
+    dpi: u32,
+    work_area: RECT,
+    vs: RECT,
+) -> (f32, f32, f32, f32) {
+    let mut new_x = current_x;
+    let mut new_y = current_y;
+    let mut new_w = current_w;
+    let mut new_h = current_h;
+
+    if is_shift_down && !is_alt_down {
+        // Expand (Grow)
+        if dx > 0.0 {
+            new_w += dx;
+        } else if dx < 0.0 {
+            new_x += dx;
+            new_w -= dx;
+        }
+
+        if dy > 0.0 {
+            new_h += dy;
+        } else if dy < 0.0 {
+            new_y += dy;
+            new_h -= dy;
+        }
+    } else if is_alt_down && !is_shift_down {
+        // Shrink (Reduce)
+        if dx > 0.0 {
+            new_x += dx;
+            new_w -= dx;
+        } else if dx < 0.0 {
+            new_w += dx;
+        }
+
+        if dy > 0.0 {
+            new_y += dy;
+            new_h -= dy;
+        } else if dy < 0.0 {
+            new_h += dy;
+        }
+    }
+
+    // 1. Minimum Size Floor (DPI scaled)
+    let scale_factor = dpi as f32 / 96.0;
+    let min_w = 350.0 * scale_factor;
+    let min_h = 350.0 * scale_factor;
+
+    if new_w < min_w {
+        if is_alt_down && dx > 0.0 {
+            // Shrunk from Left, adjust pos_x to preserve right edge
+            new_x = current_x + current_w - min_w;
+        }
+        new_w = min_w;
+    }
+    if new_h < min_h {
+        if is_alt_down && dy > 0.0 {
+            // Shrunk from Top, adjust pos_y to preserve bottom edge
+            new_y = current_y + current_h - min_h;
+        }
+        new_h = min_h;
+    }
+
+    // 2. Monitor Work Area Boundary (Only for Shift-Expansion)
+    if is_shift_down && !is_alt_down {
+        if new_x < work_area.left as f32 {
+            new_x = work_area.left as f32;
+            new_w = (current_x + current_w) - new_x;
+        }
+        if new_x + new_w > work_area.right as f32 {
+            new_w = work_area.right as f32 - new_x;
+        }
+        if new_y < work_area.top as f32 {
+            new_y = work_area.top as f32;
+            new_h = (current_y + current_h) - new_y;
+        }
+        if new_y + new_h > work_area.bottom as f32 {
+            new_h = work_area.bottom as f32 - new_y;
+        }
+    }
+
+    // 3. Off-Screen Parking Constraints (Minimum 150px visible)
+    let min_visible = 150.0;
+    if new_x < vs.left as f32 - new_w + min_visible {
+        new_x = vs.left as f32 - new_w + min_visible;
+    } else if new_x > vs.right as f32 - min_visible {
+        new_x = vs.right as f32 - min_visible;
+    }
+
+    if new_y < vs.top as f32 - new_h + min_visible {
+        new_y = vs.top as f32 - new_h + min_visible;
+    } else if new_y > vs.bottom as f32 - min_visible {
+        new_y = vs.bottom as f32 - min_visible;
+    }
+
+    (new_x, new_y, new_w, new_h)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -331,5 +438,51 @@ mod tests {
         if !progman_hwnd.is_invalid() && !progman_hwnd.0.is_null() {
             assert!(is_taskbar_or_start_menu(progman_hwnd));
         }
+    }
+
+    #[test]
+    fn test_calculate_resized_rect() {
+        let work_area = RECT { left: 0, top: 0, right: 1000, bottom: 1000 };
+        let vs = RECT { left: -5000, top: -5000, right: 5000, bottom: 5000 };
+
+        // Test Shift + Right (Expand Right, dx > 0)
+        let (x, _y, w, _h) = calculate_resized_rect(
+            100.0, 100.0, 400.0, 400.0,
+            true, false, // is_shift_down, is_alt_down
+            50.0, 0.0, // dx, dy
+            96, work_area, vs
+        );
+        assert_eq!(x, 100.0);
+        assert_eq!(w, 450.0);
+
+        // Test Shift + Left (Expand Left, dx < 0)
+        let (x, _y, w, _h) = calculate_resized_rect(
+            100.0, 100.0, 400.0, 400.0,
+            true, false,
+            -50.0, 0.0,
+            96, work_area, vs
+        );
+        assert_eq!(x, 50.0);
+        assert_eq!(w, 450.0);
+
+        // Test Alt + Right (Shrink Left edge rightwards, dx > 0)
+        let (x, _y, w, _h) = calculate_resized_rect(
+            100.0, 100.0, 400.0, 400.0,
+            false, true,
+            50.0, 0.0,
+            96, work_area, vs
+        );
+        assert_eq!(x, 150.0);
+        assert_eq!(w, 350.0);
+
+        // Test Alt + Left (Shrink Right edge leftwards, dx < 0)
+        let (x, _y, w, _h) = calculate_resized_rect(
+            100.0, 100.0, 400.0, 400.0,
+            false, true,
+            -50.0, 0.0,
+            96, work_area, vs
+        );
+        assert_eq!(x, 100.0);
+        assert_eq!(w, 350.0);
     }
 }

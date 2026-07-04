@@ -5,6 +5,7 @@
     "thrust_friction": 0.5,
     "top_speed": 4000.0
   },
+  "resize_speed": 600.0,
   "hotkey": {
     "modifiers": 3,
     "vk": 121
