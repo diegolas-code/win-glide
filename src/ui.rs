@@ -85,6 +85,32 @@ fn draw_arrow(
 /// Manages a transparent overlay window.
 pub struct Overlay {
     pub hwnd: HWND,
+    cached_dc: std::cell::RefCell<Option<windows::Win32::Graphics::Gdi::HDC>>,
+    cached_bitmap: std::cell::RefCell<Option<windows::Win32::Graphics::Gdi::HBITMAP>>,
+    cached_old_bitmap: std::cell::RefCell<Option<windows::Win32::Graphics::Gdi::HGDIOBJ>>,
+    cached_width: std::cell::Cell<i32>,
+    cached_height: std::cell::Cell<i32>,
+    cached_bits: std::cell::Cell<*mut u8>,
+}
+
+impl Drop for Overlay {
+    fn drop(&mut self) {
+        unsafe {
+            let dc = self.cached_dc.replace(None);
+            let old_bmp = self.cached_old_bitmap.replace(None);
+            let bmp = self.cached_bitmap.replace(None);
+
+            if let Some(mem_dc) = dc.filter(|d| !d.is_invalid()) {
+                if let Some(old) = old_bmp.filter(|o| !o.is_invalid()) {
+                    let _ = windows::Win32::Graphics::Gdi::SelectObject(mem_dc, old);
+                }
+                if let Some(bitmap) = bmp.filter(|b| !b.is_invalid()) {
+                    let _ = windows::Win32::Graphics::Gdi::DeleteObject(bitmap);
+                }
+                let _ = windows::Win32::Graphics::Gdi::DeleteDC(mem_dc);
+            }
+        }
+    }
 }
 
 /// Constant for the vertical extension above the window (the "header").
@@ -94,29 +120,10 @@ pub const OVERLAY_TOP_EXTENSION: i32 = 7;
 pub const INDICATOR_OPACITY: u8 = 204;
 
 /// Helper struct containing GDI handles for a prepared overlay surface.
-/// Uses RAII to release resources if dropped before commit.
 pub struct PreparedOverlaySurface {
     pub mem_dc: windows::Win32::Graphics::Gdi::HDC,
-    pub bitmap: windows::Win32::Graphics::Gdi::HBITMAP,
-    pub old_bitmap: windows::Win32::Graphics::Gdi::HGDIOBJ,
     pub width: i32,
     pub height: i32,
-}
-
-impl Drop for PreparedOverlaySurface {
-    fn drop(&mut self) {
-        unsafe {
-            if !self.mem_dc.is_invalid() {
-                if !self.old_bitmap.is_invalid() {
-                    let _ = SelectObject(self.mem_dc, self.old_bitmap);
-                }
-                if !self.bitmap.is_invalid() {
-                    let _ = DeleteObject(self.bitmap);
-                }
-                let _ = DeleteDC(self.mem_dc);
-            }
-        }
-    }
 }
 
 impl Overlay {
@@ -169,7 +176,15 @@ impl Overlay {
             )?
         };
 
-        Ok(Self { hwnd })
+        Ok(Self {
+            hwnd,
+            cached_dc: std::cell::RefCell::new(None),
+            cached_bitmap: std::cell::RefCell::new(None),
+            cached_old_bitmap: std::cell::RefCell::new(None),
+            cached_width: std::cell::Cell::new(0),
+            cached_height: std::cell::Cell::new(0),
+            cached_bits: std::cell::Cell::new(std::ptr::null_mut()),
+        })
     }
 
     /// Sets the target window as the "owner" of the overlay.
@@ -222,51 +237,95 @@ impl Overlay {
         }
 
         unsafe {
-            let screen_dc = windows::Win32::Graphics::Gdi::GetDC(None);
-            if screen_dc.is_invalid() {
-                return None;
-            }
+            let cache_dc_opt = *self.cached_dc.borrow();
+            let cache_bmp_opt = *self.cached_bitmap.borrow();
+            let cache_old_opt = *self.cached_old_bitmap.borrow();
+            let cache_w = self.cached_width.get();
+            let cache_h = self.cached_height.get();
+            let mut bits = self.cached_bits.get();
 
-            let mem_dc = CreateCompatibleDC(screen_dc);
-            if mem_dc.is_invalid() {
-                windows::Win32::Graphics::Gdi::ReleaseDC(None, screen_dc);
-                return None;
-            }
+            let is_cache_valid = cache_dc_opt.is_some()
+                && cache_bmp_opt.is_some()
+                && cache_old_opt.is_some()
+                && cache_w == width
+                && cache_h == height
+                && !bits.is_null();
 
-            let bmi = BITMAPINFO {
-                bmiHeader: BITMAPINFOHEADER {
-                    biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
-                    biWidth: width,
-                    biHeight: -height, // Negative height means top-down bitmap
-                    biPlanes: 1,
-                    biBitCount: 32,
-                    biCompression: 0, // BI_RGB
+            let mem_dc = if is_cache_valid {
+                cache_dc_opt.unwrap()
+            } else {
+                // Cache Miss or resize: Clean up old cached resources first
+                if let Some(mem_dc) = cache_dc_opt.filter(|d| !d.is_invalid()) {
+                    if let Some(old) = cache_old_opt.filter(|o| !o.is_invalid()) {
+                        let _ = SelectObject(mem_dc, old);
+                    }
+                    if let Some(bmp) = cache_bmp_opt.filter(|b| !b.is_invalid()) {
+                        let _ = DeleteObject(bmp);
+                    }
+                    let _ = DeleteDC(mem_dc);
+                }
+
+                // Allocate new compatible DC and DIB section
+                let screen_dc = windows::Win32::Graphics::Gdi::GetDC(None);
+                if screen_dc.is_invalid() {
+                    return None;
+                }
+
+                let mem_dc = CreateCompatibleDC(screen_dc);
+                if mem_dc.is_invalid() {
+                    windows::Win32::Graphics::Gdi::ReleaseDC(None, screen_dc);
+                    return None;
+                }
+
+                let bmi = BITMAPINFO {
+                    bmiHeader: BITMAPINFOHEADER {
+                        biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
+                        biWidth: width,
+                        biHeight: -height, // top-down
+                        biPlanes: 1,
+                        biBitCount: 32,
+                        biCompression: 0,
+                        ..Default::default()
+                    },
                     ..Default::default()
-                },
-                ..Default::default()
-            };
+                };
 
-            let mut bits = std::ptr::null_mut();
-            let bitmap = match CreateDIBSection(mem_dc, &bmi, DIB_RGB_COLORS, &mut bits, None, 0) {
-                Ok(bmp) => bmp,
-                Err(_) => {
+                let mut new_bits = std::ptr::null_mut();
+                let bitmap =
+                    match CreateDIBSection(mem_dc, &bmi, DIB_RGB_COLORS, &mut new_bits, None, 0) {
+                        Ok(bmp) => bmp,
+                        Err(_) => {
+                            let _ = DeleteDC(mem_dc);
+                            windows::Win32::Graphics::Gdi::ReleaseDC(None, screen_dc);
+                            return None;
+                        }
+                    };
+
+                if new_bits.is_null() {
+                    let _ = DeleteObject(bitmap);
                     let _ = DeleteDC(mem_dc);
                     windows::Win32::Graphics::Gdi::ReleaseDC(None, screen_dc);
                     return None;
                 }
+
+                let old_bitmap = SelectObject(mem_dc, bitmap);
+                windows::Win32::Graphics::Gdi::ReleaseDC(None, screen_dc);
+
+                // Update cache
+                *self.cached_dc.borrow_mut() = Some(mem_dc);
+                *self.cached_bitmap.borrow_mut() = Some(bitmap);
+                *self.cached_old_bitmap.borrow_mut() = Some(old_bitmap);
+                self.cached_width.set(width);
+                self.cached_height.set(height);
+                self.cached_bits.set(new_bits as *mut u8);
+                bits = new_bits as *mut u8;
+
+                mem_dc
             };
 
-            if bits.is_null() {
-                let _ = DeleteObject(bitmap);
-                let _ = DeleteDC(mem_dc);
-                windows::Win32::Graphics::Gdi::ReleaseDC(None, screen_dc);
-                return None;
-            }
-
-            // 1. Wrap the DIB section's memory in a tiny-skia PixmapMut.
+            // Wrap the DIB section's memory in a tiny-skia PixmapMut.
             // This allows rendering directly into GDI-managed memory, eliminating a copy.
-            let slice =
-                std::slice::from_raw_parts_mut(bits as *mut u8, (width * height * 4) as usize);
+            let slice = std::slice::from_raw_parts_mut(bits, (width * height * 4) as usize);
             if let Some(mut pixmap) = PixmapMut::from_bytes(slice, width as u32, height as u32) {
                 // Clear with transparent (GDI memory might be uninitialized)
                 pixmap.fill(Color::TRANSPARENT);
@@ -392,8 +451,6 @@ impl Overlay {
                 }
             }
 
-            let old_bitmap = SelectObject(mem_dc, bitmap);
-
             // --- Draw Help Text ---
             // Calculate margins & sizes for text safe bounding box
             let dpi = {
@@ -485,30 +542,34 @@ impl Overlay {
 
                     let _ = SelectObject(mem_dc, old_font);
                     let _ = DeleteObject(font);
+
+                    // --- Alpha Channel Post-Processing (Localized Scan) ---
+                    let scan_top = draw_rect.top.max(0) as usize;
+                    let scan_bottom = (draw_rect.bottom as usize).min(height as usize);
+                    let scan_left = draw_rect.left.max(0) as usize;
+                    let scan_right = (draw_rect.right as usize).min(width as usize);
+
+                    let stride = width as usize * 4;
+                    for y in scan_top..scan_bottom {
+                        let row_offset = y * stride;
+                        for x in scan_left..scan_right {
+                            let offset = row_offset + x * 4;
+                            let b = slice[offset];
+                            let a = &mut slice[offset + 3];
+                            if b > 0 {
+                                let intensity = b as f32 / 255.0;
+                                let bg_alpha = *a;
+                                *a = (bg_alpha as f32
+                                    + (INDICATOR_OPACITY as f32 - bg_alpha as f32) * intensity)
+                                    as u8;
+                            }
+                        }
+                    }
                 }
             }
-
-            // --- Alpha Channel Post-Processing ---
-            let slice =
-                std::slice::from_raw_parts_mut(bits as *mut u8, (width * height * 4) as usize);
-            for offset in (0..slice.len()).step_by(4) {
-                let b = slice[offset];
-                let a = &mut slice[offset + 3];
-                if b > 0 {
-                    let intensity = b as f32 / 255.0;
-                    let bg_alpha = *a;
-                    *a = (bg_alpha as f32
-                        + (INDICATOR_OPACITY as f32 - bg_alpha as f32) * intensity)
-                        as u8;
-                }
-            }
-
-            windows::Win32::Graphics::Gdi::ReleaseDC(None, screen_dc);
 
             Some(PreparedOverlaySurface {
                 mem_dc,
-                bitmap,
-                old_bitmap,
                 width,
                 height,
             })
@@ -518,7 +579,7 @@ impl Overlay {
     /// Commits the prepared surface to the DWM/layered window using UpdateLayeredWindow.
     pub fn commit_surface(
         &self,
-        mut prepared: PreparedOverlaySurface,
+        prepared: PreparedOverlaySurface,
         rect: RECT,
     ) -> windows::core::Result<()> {
         unsafe {
@@ -557,15 +618,6 @@ impl Overlay {
             );
 
             windows::Win32::Graphics::Gdi::ReleaseDC(None, screen_dc);
-
-            // Clean up handles inside prepared so drop() doesn't double-free or re-select.
-            let _ = SelectObject(prepared.mem_dc, prepared.old_bitmap);
-            let _ = DeleteObject(prepared.bitmap);
-            let _ = DeleteDC(prepared.mem_dc);
-
-            prepared.mem_dc = windows::Win32::Graphics::Gdi::HDC::default();
-            prepared.bitmap = windows::Win32::Graphics::Gdi::HBITMAP::default();
-            prepared.old_bitmap = windows::Win32::Graphics::Gdi::HGDIOBJ::default();
 
             res
         }
@@ -739,5 +791,43 @@ mod tests {
         let surf_default = prepared_default.unwrap();
         assert_eq!(surf_default.width, 400);
         assert_eq!(surf_default.height, 400 + OVERLAY_TOP_EXTENSION);
+    }
+
+    #[test]
+    fn test_overlay_gdi_caching() {
+        let overlay = Overlay::new().unwrap();
+
+        let rect1 = RECT {
+            left: 100,
+            top: 100,
+            right: 400,
+            bottom: 400,
+        };
+
+        // Call prepare_surface for the first time
+        let prepared1 = overlay.prepare_surface(rect1, false, false).unwrap();
+        let dc1 = prepared1.mem_dc;
+
+        // Call prepare_surface again with the same dimensions (should hit cache)
+        let prepared2 = overlay.prepare_surface(rect1, false, false).unwrap();
+        let dc2 = prepared2.mem_dc;
+
+        assert_eq!(
+            dc1, dc2,
+            "DC should be cached and re-used for identical dimensions"
+        );
+
+        // Call prepare_surface with different dimensions (should miss cache and allocate new DC)
+        let rect2 = RECT {
+            left: 100,
+            top: 100,
+            right: 500,
+            bottom: 400,
+        };
+        let prepared3 = overlay.prepare_surface(rect2, false, false).unwrap();
+        let _dc3 = prepared3.mem_dc;
+
+        assert_eq!(overlay.cached_width.get(), 400);
+        assert_eq!(overlay.cached_height.get(), 300 + OVERLAY_TOP_EXTENSION);
     }
 }
