@@ -19,6 +19,34 @@ use crate::config::Config;
 use crate::input::{InputEvent, InputManager, register_shutdown_handler};
 use crossbeam_channel::unbounded;
 
+/// RAII guard to set Windows timer resolution to 1ms on startup and restore it on shutdown.
+struct TimerResolutionGuard;
+
+impl TimerResolutionGuard {
+    fn new() -> Self {
+        #[link(name = "winmm")]
+        unsafe extern "system" {
+            fn timeBeginPeriod(uPeriod: u32) -> u32;
+        }
+        unsafe {
+            let _ = timeBeginPeriod(1);
+        }
+        Self
+    }
+}
+
+impl Drop for TimerResolutionGuard {
+    fn drop(&mut self) {
+        #[link(name = "winmm")]
+        unsafe extern "system" {
+            fn timeEndPeriod(uPeriod: u32) -> u32;
+        }
+        unsafe {
+            let _ = timeEndPeriod(1);
+        }
+    }
+}
+
 /// The main entry point for the win-glide application.
 ///
 /// It orchestrates the startup sequence:
@@ -28,6 +56,8 @@ use crossbeam_channel::unbounded;
 /// 4. Spawn a dedicated thread for low-level keyboard/mouse hooks to ensure zero latency.
 /// 5. Initialize and run the main application state machine.
 fn main() -> windows::core::Result<()> {
+    let _timer_guard = TimerResolutionGuard::new();
+
     // Load user preferences for physics and hotkeys.
     let config = Config::load();
 
