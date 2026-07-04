@@ -5,7 +5,7 @@
 //! Rendering is performed using `tiny-skia` into a GDI DIB section,
 //! which is then uploaded via `UpdateLayeredWindow`.
 
-use tiny_skia::{Color, FillRule, Paint, PathBuilder, PixmapMut, Transform};
+use tiny_skia::{Color, FillRule, LineCap, LineJoin, Paint, PathBuilder, PixmapMut, Stroke, Transform};
 use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, POINT, RECT, SIZE, WPARAM};
 use windows::Win32::Graphics::Gdi::{
     AC_SRC_ALPHA, AC_SRC_OVER, BITMAPINFO, BITMAPINFOHEADER, BLENDFUNCTION, CreateCompatibleDC,
@@ -33,40 +33,42 @@ fn draw_arrow(
     center_y: f32,
     size: f32,
     direction: ArrowDirection,
+    dpi_scale: f32,
 ) {
     let half = size / 2.0;
     let mut pb = tiny_skia::PathBuilder::new();
     match direction {
         ArrowDirection::Up => {
-            pb.move_to(center_x, center_y - half);
+            pb.move_to(center_x - half, center_y + half);
+            pb.line_to(center_x, center_y - half);
             pb.line_to(center_x + half, center_y + half);
-            pb.line_to(center_x - half, center_y + half);
-            pb.close();
         }
         ArrowDirection::Down => {
-            pb.move_to(center_x, center_y + half);
+            pb.move_to(center_x - half, center_y - half);
+            pb.line_to(center_x, center_y + half);
             pb.line_to(center_x + half, center_y - half);
-            pb.line_to(center_x - half, center_y - half);
-            pb.close();
         }
         ArrowDirection::Left => {
-            pb.move_to(center_x - half, center_y);
-            pb.line_to(center_x + half, center_y - half);
+            pb.move_to(center_x + half, center_y - half);
+            pb.line_to(center_x - half, center_y);
             pb.line_to(center_x + half, center_y + half);
-            pb.close();
         }
         ArrowDirection::Right => {
-            pb.move_to(center_x + half, center_y);
-            pb.line_to(center_x - half, center_y - half);
+            pb.move_to(center_x - half, center_y - half);
+            pb.line_to(center_x + half, center_y);
             pb.line_to(center_x - half, center_y + half);
-            pb.close();
         }
     }
     if let Some(path) = pb.finish() {
-        pixmap.fill_path(
+        let mut stroke = Stroke::default();
+        stroke.width = 8.0 * dpi_scale;
+        stroke.line_cap = LineCap::Round;
+        stroke.line_join = LineJoin::Round;
+
+        pixmap.stroke_path(
             &path,
             paint,
-            tiny_skia::FillRule::Winding,
+            &stroke,
             tiny_skia::Transform::identity(),
             None,
         );
@@ -298,7 +300,7 @@ impl Overlay {
                 };
                 let dpi_scale = dpi as f32 / 96.0;
                 let arrow_size = 48.0 * dpi_scale;
-                let margin = 15.0 * dpi_scale;
+                let margin = 30.0 * dpi_scale;
 
                 // Draw arrows if Alt or Shift is down and window is large enough
                 if (is_shift_down || is_alt_down)
@@ -306,7 +308,7 @@ impl Overlay {
                     && (h - OVERLAY_TOP_EXTENSION as f32) >= 3.0 * arrow_size
                 {
                     let mut white_paint = Paint::default();
-                    white_paint.set_color(Color::from_rgba8(255, 255, 255, 255));
+                    white_paint.set_color(Color::from_rgba8(255, 255, 255, 204));
                     white_paint.anti_alias = true;
 
                     let top_direction = if is_shift_down { ArrowDirection::Up } else { ArrowDirection::Down };
@@ -322,6 +324,7 @@ impl Overlay {
                         OVERLAY_TOP_EXTENSION as f32 + margin + arrow_size / 2.0,
                         arrow_size,
                         top_direction,
+                        dpi_scale,
                     );
 
                     // Bottom Arrow
@@ -332,6 +335,7 @@ impl Overlay {
                         h - margin - arrow_size / 2.0,
                         arrow_size,
                         bottom_direction,
+                        dpi_scale,
                     );
 
                     // Left Arrow
@@ -342,6 +346,7 @@ impl Overlay {
                         OVERLAY_TOP_EXTENSION as f32 + (h - OVERLAY_TOP_EXTENSION as f32) / 2.0,
                         arrow_size,
                         left_direction,
+                        dpi_scale,
                     );
 
                     // Right Arrow
@@ -352,6 +357,7 @@ impl Overlay {
                         OVERLAY_TOP_EXTENSION as f32 + (h - OVERLAY_TOP_EXTENSION as f32) / 2.0,
                         arrow_size,
                         right_direction,
+                        dpi_scale,
                     );
                 }
             }
