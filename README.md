@@ -29,6 +29,9 @@ Due to Windows **User Interface Privilege Isolation (UIPI)**, standard-user appl
     - **Timeout:** The session automatically ends after **5 seconds** of inactivity.
     - **Focus Loss:** Switching windows or losing focus will also end the session.
 
+![win-glide screencap](./screencap.gif)
+
+
 ## Configuration
 Upon first run, `win-glide` generates a `config.json` in the application directory. You can customize the physics, resize speed, and hotkeys:
 
