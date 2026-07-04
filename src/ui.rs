@@ -554,10 +554,10 @@ impl Overlay {
                         let row_offset = y * stride;
                         for x in scan_left..scan_right {
                             let offset = row_offset + x * 4;
-                            let b = slice[offset];
+                            let r_val = slice[offset + 2]; // Red channel (0 for background, >0 for text)
                             let a = &mut slice[offset + 3];
-                            if b > 0 {
-                                let intensity = b as f32 / 255.0;
+                            if r_val > 0 {
+                                let intensity = r_val as f32 / 255.0;
                                 let bg_alpha = *a;
                                 *a = (bg_alpha as f32
                                     + (INDICATOR_OPACITY as f32 - bg_alpha as f32) * intensity)
