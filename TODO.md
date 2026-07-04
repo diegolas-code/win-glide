@@ -99,7 +99,7 @@
 - [x] Fix hotkey interception inside low-level keyboard hook to prevent deactivating active glide sessions
 - [x] Fix overlay Z-order: dynamically synchronize overlay topmost style with target window topmost status
 - [x] Inform about the centering hotkey in the console output dynamically
-- [ ] Commit & Merge to dev
+- [x] Commit & Merge to dev
 
 ## Phase 9b: System UI Exclusions
 - [x] Implement window ancestry & owner resolution (`get_root_window`)
@@ -109,7 +109,7 @@
 - [x] Integrate exclusions into glide activation (`activate_session`)
 - [x] Integrate exclusions into window centering (`center_window`)
 - [x] Add unit/integration test `test_live_window_manager_is_taskbar_or_start_menu`
-- [ ] Commit & Merge to dev
+- [x] Commit & Merge to dev
 
 ## Phase 10: Keyboard-Driven Window Resizing
 - [x] Configure keyboard hook `keyboard_proc` in `src/input.rs` to allow `VK_MENU` and `VK_SHIFT` to pass through, keeping arrow key consumption active during active sessions
@@ -137,7 +137,7 @@
 - [x] Add `last_modifiers_state` tracking to `App` in `src/app.rs` and trigger synchronous overlay redraws on modifier change in the main loop
 - [x] Write unit tests for overlay arrow rendering and suppression
 - [x] Implement DPI-scaled overlay help text legends and GDI alpha-channel post-processing reconstruction
-- [ ] Commit & Merge to dev
+- [x] Commit & Merge to dev
 
 ## Phase 11: Productization (The Road to v1.0.0)
 - [ ] Create a release-optimized build profile
