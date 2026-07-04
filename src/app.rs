@@ -58,6 +58,8 @@ pub struct App {
     detected_min_w: Option<f32>,
     /// Dynamically detected minimum height constraint of the active target window.
     detected_min_h: Option<f32>,
+    /// The modifier states of Shift and Alt during the last frame tick.
+    last_modifiers_state: (bool, bool),
     /// Flag to keep the main loop running.
     running: bool,
 }
@@ -88,6 +90,7 @@ impl App {
             pressed_keys: HashSet::new(),
             detected_min_w: None,
             detected_min_h: None,
+            last_modifiers_state: (false, false),
             running: true,
         }
     }
@@ -115,6 +118,16 @@ impl App {
             // If a session is active, perform the physics and movement update.
             if self.active_window.is_some() {
                 self.sync_overlay_to_actual_window();
+
+                // Query current modifier key states
+                let is_shift_down = unsafe { GetAsyncKeyState(windows::Win32::UI::Input::KeyboardAndMouse::VK_SHIFT.0 as i32) } as u16 & 0x8000 != 0;
+                let is_alt_down = unsafe { GetAsyncKeyState(windows::Win32::UI::Input::KeyboardAndMouse::VK_MENU.0 as i32) } as u16 & 0x8000 != 0;
+
+                let current_modifiers = (is_shift_down, is_alt_down);
+                if current_modifiers != self.last_modifiers_state {
+                    self.last_modifiers_state = current_modifiers;
+                    let _ = self.overlay.redraw(self.window_rect, is_shift_down, is_alt_down);
+                }
 
                 if self.is_resizing_active() {
                     // Zero out translation velocity to prevent drift during resizing actions
@@ -388,6 +401,7 @@ impl App {
                     self.dpi = Platform::get_dpi_for_window(hwnd);
                     self.detected_min_w = None;
                     self.detected_min_h = None;
+                    self.last_modifiers_state = (false, false);
 
                     // Tell the input hooks to start intercepting/modifying input.
                     crate::input::set_session_active(true);
@@ -421,6 +435,7 @@ impl App {
         self.overlay.show(false);
         self.detected_min_w = None;
         self.detected_min_h = None;
+        self.last_modifiers_state = (false, false);
     }
 
     /// Converts held keys into a thrust vector.

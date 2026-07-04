@@ -547,4 +547,25 @@ mod tests {
             let _ = DestroyWindow(hwnd_test);
         }
     }
+
+    #[test]
+    fn test_overlay_arrow_rendering() {
+        let overlay = Overlay::new().unwrap();
+
+        // Case 1: Window rect is too small to draw arrows (should still prepare surface successfully)
+        let small_rect = RECT { left: 100, top: 100, right: 150, bottom: 150 };
+        let prepared_small = overlay.prepare_surface(small_rect, true, false);
+        assert!(prepared_small.is_some());
+        let surf = prepared_small.unwrap();
+        assert_eq!(surf.width, 50);
+        assert_eq!(surf.height, 50 + OVERLAY_TOP_EXTENSION);
+
+        // Case 2: Window rect is large enough to draw arrows
+        let large_rect = RECT { left: 100, top: 100, right: 500, bottom: 500 };
+        let prepared_large = overlay.prepare_surface(large_rect, true, false);
+        assert!(prepared_large.is_some());
+        let surf_large = prepared_large.unwrap();
+        assert_eq!(surf_large.width, 400);
+        assert_eq!(surf_large.height, 400 + OVERLAY_TOP_EXTENSION);
+    }
 }
