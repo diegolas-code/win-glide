@@ -5,17 +5,12 @@ win-glide is a high-performance Windows utility designed for rapid, momentum-bas
 ## Core Features
 - **Fluid Keyboard Movement:** Move active windows using arrow keys with high-precision acceleration and friction, powered by a 120Hz physics loop.
 - **Instant Window Centering:** Press **`Win + Alt + C`** to center the focused window on its current monitor in one step.
-- **Tactile Window Resizing:** Hold **`Shift` + Arrow Keys** to grow/expand borders outwards, or **`Alt` + Arrow Keys** to shrink/pull borders inwards. Resizing is snappy and discrete (configured in pixels per press), utilizing atomic OS transactions to eliminate display stutter.
+- **Tactile Window Resizing:** Hold **`Shift` + Arrow Keys** to grow/expand borders outwards, or **`Alt` + Arrow Keys** to shrink/pull borders inwards. Resizing is snappy and discrete (configured in pixels per press).
 - **Snappy & Light Physics:** Uses a **Dual-Friction Model** for slow, deliberate acceleration to high speeds while maintaining a nearly instant "glide stop" upon release.
-- **Modern Visual Feedback:** A transparent tinted overlay with **8px rounded corners** and a **7px header** follows the active window's dimensions.
-- **Resize Indicators & Help Legends:** Shows DPI-scaled 36px white chevrons pointing in the transformation direction and displays dynamic regular-weight help instructions (e.g. `[Shift]`, `[Alt]`, `[Arrow keys]`) at 18px with 80% opacity, utilizing smooth grayscale anti-aliasing.
-- **Instant Response:** Zero-copy rendering pipeline and immediate message pumping ensure the overlay appears with no perceived latency.
 - **Free Multi-Monitor Movement:** Glide windows seamlessly across your entire virtual desktop. Windows can be "parked" partially off-screen while maintaining a safe 150px visible margin.
 - **Safe & Responsive:**
     - **Maximized Window Guard:** Prevents accidental movement or resizing of maximized windows.
-    - **Minimum Bounds Protection:** Enforces a DPI-scaled 350px minimum width/height clamp, dynamically caching application bounds and applying self-healing shifts to prevent target window drift.
-    - **Panic Exit:** Any keyboard input or mouse click immediately deactivates the glide session for instant control recovery.
-    - **Shutdown:** Cleanly exits and releases system hooks on `Ctrl+C`.
+    - **Panic Exit:** Any other keyboard input or mouse click immediately deactivates the glide session for instant control recovery.
 
 ## Security & Privileges
 Due to Windows **User Interface Privilege Isolation (UIPI)**, standard-user applications are restricted from interacting with "high-integrity" windows.
@@ -24,8 +19,8 @@ Due to Windows **User Interface Privilege Isolation (UIPI)**, standard-user appl
 
 ## How to Use
 1.  **Launch:** Run the application (`cargo run` or the compiled binary).
-2.  **Activate:** Press **`Ctrl + Alt + F10`** while any window is focused to start a "glide" session. The tinted helper overlay will appear over the window.
-3.  **Center (One-Shot):** Press **`Win + Alt + C`** to center the focused window inside the monitor work area (taskbar-aware).
+2.  **Center (One-Shot):** Press **`Win + Alt + C`** to center the focused window inside the monitor work area (taskbar-aware).
+3.  **Activate glide:** Press **`Ctrl + Alt + F10`** while any window is focused to start a "glide" session. The tinted helper overlay will appear over the window.
 4.  **Move:** Use the **Arrow Keys** to apply thrust. Acceleration is continuous; hold the keys to reach top speed (~1.3s spin-up).
 5.  **Resize:** Hold **`Shift + Arrow Keys`** to expand borders outwards, or **`Alt + Arrow Keys`** to shrink borders inwards.
 6.  **Exit:** 
@@ -78,11 +73,11 @@ cargo test
 
 ## Developer Notes
 - **Graceful Shutdown:** The application uses a thread-safe signaling mechanism. When `App` receives a `Shutdown` event (from `Ctrl+C`), it sends a `WM_QUIT` signal to the background input thread. This ensures that `Drop` implementations for low-level hooks and global hotkeys are executed reliably.
-- **Testing Hygiene:** System-level tests involving Win32 hooks require an active interactive desktop session. These are gated behind `#[ignore]` to maintain CI stability.
 - **DPI Awareness:** The application is `PerMonitorV2` DPI-aware. Movement and rendering are normalized against the current monitor's DPI scaling.
+- **Testing Hygiene:** System-level tests involving Win32 hooks require an active interactive desktop session. These are gated behind `#[ignore]` to maintain CI stability.
 
 ## Development Workflow
-This project follows **strict idiomatic Rust standards** and mandatory documentation habits. Detailed technical decisions and bug fixes are recorded in the `.history/` directory.
+This project follows mandatory documentation habits. Detailed technical decisions and bug fixes are recorded in the `.history/` directory.
 
 ## License
 This project is licensed under the [MIT License](LICENSE).
