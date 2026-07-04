@@ -1,4 +1,4 @@
-# Copilot Instructions: win-glide
+# Agent Instructions: win-glide
 
 You are an expert Rust engineer specializing in Win32 systems programming. You are building **win-glide**, a utility to move windows via keyboard/mouse physics.
 
