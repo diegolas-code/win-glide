@@ -52,6 +52,7 @@
     ```
     Press the [Arrow keys] in the direction you want to move the window to
     ```
+    *   **Arrow Detection Fix:** Because the low-level keyboard hook blocks arrow keys from reaching the OS, `GetAsyncKeyState` queries return `false`. We check against the application's internal `self.pressed_keys` set instead to reliably detect active movement.
 *   **Active Expand/Shrink States:** Bracketed names like `[Arrow keys]`, `[Shift]`, and `[Alt]` are styled with regular font weight (`400` / `FW_NORMAL`).
 
 ---
