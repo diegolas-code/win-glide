@@ -35,7 +35,7 @@
 - **Phase 10: Keyboard-Driven Window Resizing (Completed)**
     - **Control Scheme Implemented:** Swapped modifiers to use `Shift` to grow/expand, and `Alt` to shrink/reduce.
     - **Continuous Gliding Resizing:** Migrated from discrete steps to a fluid, momentum-based continuous resizing simulation using a dedicated `resize_physics` engine configured around `resize_speed`.
-    - **Tuned Resize Physics Configuration:** Scaled resizing acceleration to `resize_speed * 5.0` (snappy response) and top speed to `resize_speed * 2.5` (fluid glide speed), with friction set to `12.0` (sharp, precise stops), matching translation snappiness.
+    - **Customizable Resize Physics:** Added `resize_physics` (with acceleration, friction, thrust_friction, and top_speed) as an optional block in `config.json`. If omitted, default resizing configurations are computed proportionally based on `resize_speed`.
     - **Ghost Resizing (Overlay-Only Resizing):** Solved target application main-thread layout and repaint overhead by resizing only the lightweight overlay window in real time at 120Hz. The physical target window is resized exactly once using a single `SetWindowPos` call when the resizing glide velocity decays to zero or when modifier keys are released.
     - **Self-Healing and Exclusions:** Bypasses `sync_overlay_to_actual_window` during active ghost resizing to prevent layout conflicts and snapbacks. The sync loop resumes once committed, automatically correcting coordinate drift and caching target window min-bounds limits.
     - **Corrected Shrink Border Directions:** Corrected opposite edges to pull inward, moving the active border in the direction of the arrow key pressed (e.g. Alt + Down pulls the top border down).
