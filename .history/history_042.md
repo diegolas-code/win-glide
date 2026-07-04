@@ -23,8 +23,9 @@
 *   **Expand Mode (Shift only):** Chevrons point outward (Up, Down, Left, Right) relative to their respective edges.
 *   **Shrink Mode (Alt only):** Chevrons point inward (Down, Up, Right, Left) relative to their respective edges.
 
-### 3. Reactive Event Polling
+### 3. Reactive Event Polling & Flicker Suppression
 *   Rather than redrawing at 120Hz constantly (which wastes CPU), `App::run` checks the current modifier state `(is_shift_down, is_alt_down)` via `GetAsyncKeyState` at 120Hz. If it differs from the cached `last_modifiers_state`, a synchronous redraw is triggered immediately.
+*   **Flicker Fix:** When activating the session via `Ctrl+Alt+F10` or centering via `Win+Alt+C`, keys like `Ctrl` and `Win` are held down. To prevent the resize indicators from flickering on/off during activation, we suppress resize indicators (`is_shift_down = false`, `is_alt_down = false`) and disable active resizing checks if either `Ctrl` or `Win` is physically pressed.
 
 ---
 

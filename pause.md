@@ -35,7 +35,7 @@
     - **Safety Boundaries Clamped:** Enforces DPI-scaled $350\text{px}$ floor, active monitor work area bounds, and $150\text{px}$ off-screen margin rules.
     - **Clean Transition Physics:** Instantly zeros translational velocity when resizing begins to prevent window drifting.
     - **Unit Tests Written:** Fully validated resizing coordinate math, deltas, and clamping limits under multiple mock monitors and modifiers.
-    - **Overlay Resize Indicators:** Draws DPI-scaled bold white chevron indicators centered inside borders on the overlay at 80% opacity. Displays outward chevrons for Shift-Expansion and inward chevrons for Alt-Shrinking, offset by a 30px margin, with automatic suppression if the window is too small. Redraws dynamically using 120Hz key state polling to respond immediately on modifier key press/release.
+    - **Overlay Resize Indicators:** Draws DPI-scaled bold white chevron indicators centered inside borders on the overlay at 80% opacity. Displays outward chevrons for Shift-Expansion and inward chevrons for Alt-Shrinking, offset by a 30px margin, with automatic suppression if the window is too small. Redraws dynamically using 120Hz key state polling to respond immediately on modifier key press/release. Prevents activation flicker by suppressing indicators when `Ctrl` or `Win` modifier keys are held down.
 
 ## Immediate Next Steps
 - **Phase 12: Productization (The Road to v1.0.0)**
