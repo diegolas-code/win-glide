@@ -18,6 +18,61 @@ use windows::Win32::UI::WindowsAndMessaging::{
 };
 use windows::core::w;
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum ArrowDirection {
+    Up,
+    Down,
+    Left,
+    Right,
+}
+
+fn draw_arrow(
+    pixmap: &mut tiny_skia::PixmapMut,
+    paint: &tiny_skia::Paint,
+    center_x: f32,
+    center_y: f32,
+    size: f32,
+    direction: ArrowDirection,
+) {
+    let half = size / 2.0;
+    let mut pb = tiny_skia::PathBuilder::new();
+    match direction {
+        ArrowDirection::Up => {
+            pb.move_to(center_x, center_y - half);
+            pb.line_to(center_x + half, center_y + half);
+            pb.line_to(center_x - half, center_y + half);
+            pb.close();
+        }
+        ArrowDirection::Down => {
+            pb.move_to(center_x, center_y + half);
+            pb.line_to(center_x + half, center_y - half);
+            pb.line_to(center_x - half, center_y - half);
+            pb.close();
+        }
+        ArrowDirection::Left => {
+            pb.move_to(center_x - half, center_y);
+            pb.line_to(center_x + half, center_y - half);
+            pb.line_to(center_x + half, center_y + half);
+            pb.close();
+        }
+        ArrowDirection::Right => {
+            pb.move_to(center_x + half, center_y);
+            pb.line_to(center_x - half, center_y - half);
+            pb.line_to(center_x - half, center_y + half);
+            pb.close();
+        }
+    }
+    if let Some(path) = pb.finish() {
+        pixmap.fill_path(
+            &path,
+            paint,
+            tiny_skia::FillRule::Winding,
+            tiny_skia::Transform::identity(),
+            None,
+        );
+    }
+}
+
 /// Manages a transparent overlay window.
 pub struct Overlay {
     pub hwnd: HWND,
