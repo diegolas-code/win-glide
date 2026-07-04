@@ -122,9 +122,12 @@ impl App {
                 self.sync_overlay_to_actual_window();
 
                 // Query current modifier key states
-                let is_ctrl_down = unsafe { GetAsyncKeyState(VK_CONTROL.0 as i32) } as u16 & 0x8000 != 0;
-                let is_lwin_down = unsafe { GetAsyncKeyState(VK_LWIN.0 as i32) } as u16 & 0x8000 != 0;
-                let is_rwin_down = unsafe { GetAsyncKeyState(VK_RWIN.0 as i32) } as u16 & 0x8000 != 0;
+                let is_ctrl_down =
+                    unsafe { GetAsyncKeyState(VK_CONTROL.0 as i32) } as u16 & 0x8000 != 0;
+                let is_lwin_down =
+                    unsafe { GetAsyncKeyState(VK_LWIN.0 as i32) } as u16 & 0x8000 != 0;
+                let is_rwin_down =
+                    unsafe { GetAsyncKeyState(VK_RWIN.0 as i32) } as u16 & 0x8000 != 0;
                 let is_win_down = is_lwin_down || is_rwin_down;
 
                 let (is_shift_down, is_alt_down) = if is_ctrl_down || is_win_down {
@@ -138,7 +141,9 @@ impl App {
                 let current_modifiers = (is_shift_down, is_alt_down);
                 if current_modifiers != self.last_modifiers_state {
                     self.last_modifiers_state = current_modifiers;
-                    let _ = self.overlay.redraw(self.window_rect, is_shift_down, is_alt_down);
+                    let _ = self
+                        .overlay
+                        .redraw(self.window_rect, is_shift_down, is_alt_down);
                 }
 
                 if self.is_resizing_active() {
@@ -235,8 +240,12 @@ impl App {
                         match vk {
                             0x25..=0x28 => {
                                 // Arrow keys: Left, Up, Right, Down
-                                let is_shift_down = unsafe { GetAsyncKeyState(VK_SHIFT.0 as i32) } as u16 & 0x8000 != 0;
-                                let is_alt_down = unsafe { GetAsyncKeyState(VK_MENU.0 as i32) } as u16 & 0x8000 != 0;
+                                let is_shift_down =
+                                    unsafe { GetAsyncKeyState(VK_SHIFT.0 as i32) } as u16 & 0x8000
+                                        != 0;
+                                let is_alt_down =
+                                    unsafe { GetAsyncKeyState(VK_MENU.0 as i32) } as u16 & 0x8000
+                                        != 0;
 
                                 if is_shift_down || is_alt_down {
                                     // Resizing: zero out translation velocity and perform step resize
@@ -660,7 +669,9 @@ impl App {
         };
 
         // Pre-render the overlay content on the CPU BEFORE the DWM commit transaction
-        let prepared_surface = self.overlay.prepare_surface(new_rect, is_shift_down, is_alt_down);
+        let prepared_surface = self
+            .overlay
+            .prepare_surface(new_rect, is_shift_down, is_alt_down);
 
         // Apply changes to target window and overlay in a single atomic transaction
         // (Omit SWP_NOCOPYBITS to allow smooth copy blits)
@@ -803,8 +814,10 @@ impl App {
                     self.height_f32 = (actual_rect.bottom - actual_rect.top) as f32;
                     self.last_sent_rect = actual_rect;
 
-                    let size_changed = (actual_rect.right - actual_rect.left) != (old_rect.right - old_rect.left)
-                        || (actual_rect.bottom - actual_rect.top) != (old_rect.bottom - old_rect.top);
+                    let size_changed = (actual_rect.right - actual_rect.left)
+                        != (old_rect.right - old_rect.left)
+                        || (actual_rect.bottom - actual_rect.top)
+                            != (old_rect.bottom - old_rect.top);
 
                     if size_changed {
                         let _ = self.overlay.redraw(actual_rect, false, false);

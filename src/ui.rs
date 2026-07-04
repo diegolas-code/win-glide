@@ -5,13 +5,15 @@
 //! Rendering is performed using `tiny-skia` into a GDI DIB section,
 //! which is then uploaded via `UpdateLayeredWindow`.
 
-use tiny_skia::{Color, FillRule, LineCap, LineJoin, Paint, PathBuilder, PixmapMut, Stroke, Transform};
+use tiny_skia::{
+    Color, FillRule, LineCap, LineJoin, Paint, PathBuilder, PixmapMut, Stroke, Transform,
+};
 use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, POINT, RECT, SIZE, WPARAM};
 use windows::Win32::Graphics::Gdi::{
-    AC_SRC_ALPHA, AC_SRC_OVER, BITMAPINFO, BITMAPINFOHEADER, BLENDFUNCTION, CreateCompatibleDC,
-    CreateDIBSection, DIB_RGB_COLORS, DeleteDC, DeleteObject, SelectObject,
-    CreateFontW, DrawTextW, SetTextColor, SetBkMode, TRANSPARENT,
-    DT_CALCRECT, DT_CENTER, DT_WORDBREAK, ANTIALIASED_QUALITY,
+    AC_SRC_ALPHA, AC_SRC_OVER, ANTIALIASED_QUALITY, BITMAPINFO, BITMAPINFOHEADER, BLENDFUNCTION,
+    CreateCompatibleDC, CreateDIBSection, CreateFontW, DIB_RGB_COLORS, DT_CALCRECT, DT_CENTER,
+    DT_WORDBREAK, DeleteDC, DeleteObject, DrawTextW, SelectObject, SetBkMode, SetTextColor,
+    TRANSPARENT,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     CW_USEDEFAULT, CreateWindowExW, DefWindowProcW, DeferWindowPos, HDWP, RegisterClassW, SW_HIDE,
@@ -204,7 +206,12 @@ impl Overlay {
 
     /// Prepares the overlay surface on the CPU by rendering into a GDI DIB section.
     /// Returns GDI handles wrapped in a RAII container.
-    pub fn prepare_surface(&self, rect: RECT, is_shift_down: bool, is_alt_down: bool) -> Option<PreparedOverlaySurface> {
+    pub fn prepare_surface(
+        &self,
+        rect: RECT,
+        is_shift_down: bool,
+        is_alt_down: bool,
+    ) -> Option<PreparedOverlaySurface> {
         let width = rect.right - rect.left;
         let height = (rect.bottom - rect.top) + OVERLAY_TOP_EXTENSION;
 
@@ -256,13 +263,9 @@ impl Overlay {
 
             // 1. Wrap the DIB section's memory in a tiny-skia PixmapMut.
             // This allows rendering directly into GDI-managed memory, eliminating a copy.
-            let slice = std::slice::from_raw_parts_mut(
-                bits as *mut u8,
-                (width * height * 4) as usize,
-            );
-            if let Some(mut pixmap) =
-                PixmapMut::from_bytes(slice, width as u32, height as u32)
-            {
+            let slice =
+                std::slice::from_raw_parts_mut(bits as *mut u8, (width * height * 4) as usize);
+            if let Some(mut pixmap) = PixmapMut::from_bytes(slice, width as u32, height as u32) {
                 // Clear with transparent (GDI memory might be uninitialized)
                 pixmap.fill(Color::TRANSPARENT);
 
@@ -300,7 +303,10 @@ impl Overlay {
                 // Get actual DPI to scale arrows correctly
                 let dpi = {
                     let screen_dc = windows::Win32::Graphics::Gdi::GetDC(None);
-                    let res = windows::Win32::Graphics::Gdi::GetDeviceCaps(screen_dc, windows::Win32::Graphics::Gdi::LOGPIXELSX);
+                    let res = windows::Win32::Graphics::Gdi::GetDeviceCaps(
+                        screen_dc,
+                        windows::Win32::Graphics::Gdi::LOGPIXELSX,
+                    );
                     windows::Win32::Graphics::Gdi::ReleaseDC(None, screen_dc);
                     res as u32
                 };
@@ -317,10 +323,26 @@ impl Overlay {
                     white_paint.set_color(Color::from_rgba8(255, 255, 255, INDICATOR_OPACITY));
                     white_paint.anti_alias = true;
 
-                    let top_direction = if is_shift_down { ArrowDirection::Up } else { ArrowDirection::Down };
-                    let bottom_direction = if is_shift_down { ArrowDirection::Down } else { ArrowDirection::Up };
-                    let left_direction = if is_shift_down { ArrowDirection::Left } else { ArrowDirection::Right };
-                    let right_direction = if is_shift_down { ArrowDirection::Right } else { ArrowDirection::Left };
+                    let top_direction = if is_shift_down {
+                        ArrowDirection::Up
+                    } else {
+                        ArrowDirection::Down
+                    };
+                    let bottom_direction = if is_shift_down {
+                        ArrowDirection::Down
+                    } else {
+                        ArrowDirection::Up
+                    };
+                    let left_direction = if is_shift_down {
+                        ArrowDirection::Left
+                    } else {
+                        ArrowDirection::Right
+                    };
+                    let right_direction = if is_shift_down {
+                        ArrowDirection::Right
+                    } else {
+                        ArrowDirection::Left
+                    };
 
                     // Top Arrow
                     draw_arrow(
@@ -374,7 +396,10 @@ impl Overlay {
             // Calculate margins & sizes for text safe bounding box
             let dpi = {
                 let screen_dc = windows::Win32::Graphics::Gdi::GetDC(None);
-                let res = windows::Win32::Graphics::Gdi::GetDeviceCaps(screen_dc, windows::Win32::Graphics::Gdi::LOGPIXELSX);
+                let res = windows::Win32::Graphics::Gdi::GetDeviceCaps(
+                    screen_dc,
+                    windows::Win32::Graphics::Gdi::LOGPIXELSX,
+                );
                 windows::Win32::Graphics::Gdi::ReleaseDC(None, screen_dc);
                 res as u32
             };
@@ -462,17 +487,17 @@ impl Overlay {
             }
 
             // --- Alpha Channel Post-Processing ---
-            let slice = std::slice::from_raw_parts_mut(
-                bits as *mut u8,
-                (width * height * 4) as usize,
-            );
+            let slice =
+                std::slice::from_raw_parts_mut(bits as *mut u8, (width * height * 4) as usize);
             for offset in (0..slice.len()).step_by(4) {
                 let b = slice[offset];
                 let a = &mut slice[offset + 3];
                 if b > 0 {
                     let intensity = b as f32 / 255.0;
                     let bg_alpha = *a;
-                    *a = (bg_alpha as f32 + (INDICATOR_OPACITY as f32 - bg_alpha as f32) * intensity) as u8;
+                    *a = (bg_alpha as f32
+                        + (INDICATOR_OPACITY as f32 - bg_alpha as f32) * intensity)
+                        as u8;
                 }
             }
 
@@ -489,7 +514,11 @@ impl Overlay {
     }
 
     /// Commits the prepared surface to the DWM/layered window using UpdateLayeredWindow.
-    pub fn commit_surface(&self, mut prepared: PreparedOverlaySurface, rect: RECT) -> windows::core::Result<()> {
+    pub fn commit_surface(
+        &self,
+        mut prepared: PreparedOverlaySurface,
+        rect: RECT,
+    ) -> windows::core::Result<()> {
         unsafe {
             let screen_dc = windows::Win32::Graphics::Gdi::GetDC(None);
             if screen_dc.is_invalid() {
@@ -541,7 +570,12 @@ impl Overlay {
     }
 
     /// Redraws the overlay based on the target window's dimensions.
-    pub fn redraw(&self, rect: RECT, is_shift_down: bool, is_alt_down: bool) -> windows::core::Result<()> {
+    pub fn redraw(
+        &self,
+        rect: RECT,
+        is_shift_down: bool,
+        is_alt_down: bool,
+    ) -> windows::core::Result<()> {
         if let Some(prepared) = self.prepare_surface(rect, is_shift_down, is_alt_down) {
             self.commit_surface(prepared, rect)
         } else {
@@ -672,7 +706,12 @@ mod tests {
         let overlay = Overlay::new().unwrap();
 
         // Case 1: Window rect is too small to draw arrows (should still prepare surface successfully)
-        let small_rect = RECT { left: 100, top: 100, right: 150, bottom: 150 };
+        let small_rect = RECT {
+            left: 100,
+            top: 100,
+            right: 150,
+            bottom: 150,
+        };
         let prepared_small = overlay.prepare_surface(small_rect, true, false);
         assert!(prepared_small.is_some());
         let surf = prepared_small.unwrap();
@@ -680,7 +719,12 @@ mod tests {
         assert_eq!(surf.height, 50 + OVERLAY_TOP_EXTENSION);
 
         // Case 2: Window rect is large enough to draw arrows
-        let large_rect = RECT { left: 100, top: 100, right: 500, bottom: 500 };
+        let large_rect = RECT {
+            left: 100,
+            top: 100,
+            right: 500,
+            bottom: 500,
+        };
         let prepared_large = overlay.prepare_surface(large_rect, true, false);
         assert!(prepared_large.is_some());
         let surf_large = prepared_large.unwrap();
