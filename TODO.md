@@ -132,10 +132,10 @@
 - [x] Implement coordinated layout updates via DeferWindowPos during discrete resizing to eliminate visual dragging lag
 - [x] Implement split-phase rendering (pre-render prepare + DWM commit) to eliminate 1-frame expansion lag
 - [x] Implement dynamic minimum sizing limits caching and 4-way position shift correction to handle application min bounds
-- [ ] Implement `ArrowDirection` enum and vector path drawing helpers in `src/ui.rs`
-- [ ] Update `prepare_surface` and `redraw` in `src/ui.rs` to accept `is_shift_down` and `is_alt_down` and draw DPI-scaled arrow paths
-- [ ] Add `last_modifiers_state` tracking to `App` in `src/app.rs` and trigger synchronous overlay redraws on modifier change in the main loop
-- [ ] Write unit tests for overlay arrow rendering and suppression
+- [x] Implement `ArrowDirection` enum and vector path drawing helpers in `src/ui.rs`
+- [x] Update `prepare_surface` and `redraw` in `src/ui.rs` to accept `is_shift_down` and `is_alt_down` and draw DPI-scaled arrow paths
+- [x] Add `last_modifiers_state` tracking to `App` in `src/app.rs` and trigger synchronous overlay redraws on modifier change in the main loop
+- [x] Write unit tests for overlay arrow rendering and suppression
 - [ ] Commit & Merge to dev
 
 ## Phase 11: Productization (The Road to v1.0.0)

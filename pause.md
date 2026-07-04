@@ -35,13 +35,9 @@
     - **Safety Boundaries Clamped:** Enforces DPI-scaled $350\text{px}$ floor, active monitor work area bounds, and $150\text{px}$ off-screen margin rules.
     - **Clean Transition Physics:** Instantly zeros translational velocity when resizing begins to prevent window drifting.
     - **Unit Tests Written:** Fully validated resizing coordinate math, deltas, and clamping limits under multiple mock monitors and modifiers.
+    - **Overlay Resize Indicators:** Draws DPI-scaled bold white arrow indicators centered inside borders on the overlay. Displays outward arrows (↑, ↓, ←, →) for Shift-Expansion and inward arrows (↓, ↑, →, ←) for Alt-Shrinking, with automatic suppression if the window is too small. Redraws dynamically using 120Hz key state polling to respond immediately on modifier key press/release.
 
 ## Immediate Next Steps
-- **Phase 10 Extension: Overlay Resize Indicators**
-    - Implement `ArrowDirection` and vector paths in `src/ui.rs`.
-    - Update `prepare_surface` and `redraw` to support drawing arrow indicators centered inside borders.
-    - Implement modifier change key detection and trigger synchronous redraws in `App::run`.
-    - Write unit tests to verify overlay indicator drawing and size suppression.
 - **Phase 12: Productization (The Road to v1.0.0)**
     - Create a release-optimized build profile.
     - Implement a system tray icon for easy exit and status visibility.
