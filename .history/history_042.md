@@ -11,9 +11,10 @@
 ### 1. Vector-Based Chevron Rendering
 *   **Problem:** The user requested visual arrow indicators centered along each window edge to show the resize directions when `Shift` (Expand) or `Alt` (Shrink) modifiers are pressed.
 *   **Decision:** Implement vector V-shaped paths (chevrons) directly in `src/ui.rs`. When modifier states are active:
-    *   Compute the DPI-scaled arrow size (`48.0 * scale_factor`).
+    *   Compute the DPI-scaled arrow size (`36.0 * scale_factor`).
     *   Position arrows centered vertically/horizontally along the inner borders.
-    *   Construct open V-paths using `tiny-skia` and paint them using `stroke_path` with a bold thickness of `8.0 * scale_factor`, `LineCap::Round`, and `LineJoin::Round` to ensure smooth ends.
+    *   Construct flatter, wider open V-paths using `tiny-skia` by using separate horizontal and vertical offsets: `half_w = size / 2.0` and `half_h = size / 4.0` (producing a modern $120^{\circ}$ angle).
+    *   Render them using `stroke_path` with a bold thickness of `8.0 * scale_factor`, `LineCap::Round`, and `LineJoin::Round` to ensure smooth ends.
     *   Use 80% opacity (`Color::from_rgba8(255, 255, 255, 204)`) to let underlying contents shine through.
     *   Increase the margin offset from borders from 15px to 30px (DPI-scaled) to give the chevrons more breathing room.
 *   **Safety Threshold:** Suppress drawing arrows if the window is too small (`width < 3.0 * arrow_size` or `height < 3.0 * arrow_size`) to prevent visual clutter and overlapping.
