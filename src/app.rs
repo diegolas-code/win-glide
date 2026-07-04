@@ -195,7 +195,13 @@ impl App {
             // Cap the frame rate.
             let elapsed = now.elapsed();
             if elapsed < frame_duration {
-                std::thread::sleep(frame_duration - elapsed);
+                let sleep_dur = frame_duration - elapsed;
+                if sleep_dur.as_millis() > 2 {
+                    std::thread::sleep(sleep_dur - std::time::Duration::from_millis(1));
+                }
+                while now.elapsed() < frame_duration {
+                    std::thread::yield_now();
+                }
             }
         }
 
