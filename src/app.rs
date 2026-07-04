@@ -63,6 +63,8 @@ pub struct App {
     detected_min_h: Option<f32>,
     /// The modifier states of Shift and Alt during the last frame tick.
     last_modifiers_state: (bool, bool),
+    /// Tracks if a continuous resizing operation is currently in progress.
+    is_resizing_in_progress: bool,
     /// Flag to keep the main loop running.
     running: bool,
 }
@@ -102,6 +104,7 @@ impl App {
             detected_min_w: None,
             detected_min_h: None,
             last_modifiers_state: (false, false),
+            is_resizing_in_progress: false,
             running: true,
         }
     }
@@ -128,7 +131,9 @@ impl App {
 
             // If a session is active, perform the physics and movement update.
             if self.active_window.is_some() {
-                self.sync_overlay_to_actual_window();
+                if !self.is_resizing_in_progress {
+                    self.sync_overlay_to_actual_window();
+                }
 
                 // Query current modifier key states
                 let is_ctrl_down =
@@ -159,7 +164,20 @@ impl App {
                     // Zero out translation velocity to prevent drift during resizing actions
                     self.physics.velocity = Vector2D::default();
                     self.apply_continuous_resize(dt, is_shift_down, is_alt_down);
+
+                    // If velocity decays to zero, commit the ghost bounds
+                    if self.is_resizing_in_progress
+                        && self.resize_physics.velocity.x == 0.0
+                        && self.resize_physics.velocity.y == 0.0
+                    {
+                        self.commit_ghost_resize();
+                    }
                 } else {
+                    // If transitioning from resizing in progress, commit final bounds
+                    if self.is_resizing_in_progress {
+                        self.commit_ghost_resize();
+                    }
+
                     // Reset dynamic minimum bounds constraints when resize is inactive
                     if self.detected_min_w.is_some() || self.detected_min_h.is_some() {
                         self.detected_min_w = None;
@@ -423,6 +441,7 @@ impl App {
                     self.detected_min_w = None;
                     self.detected_min_h = None;
                     self.last_modifiers_state = (false, false);
+                    self.is_resizing_in_progress = false;
 
                     // Tell the input hooks to start intercepting/modifying input.
                     crate::input::set_session_active(true);
@@ -457,6 +476,7 @@ impl App {
         self.detected_min_w = None;
         self.detected_min_h = None;
         self.last_modifiers_state = (false, false);
+        self.is_resizing_in_progress = false;
     }
 
     /// Converts held keys into a thrust vector.
@@ -622,6 +642,8 @@ impl App {
         let dy = self.resize_physics.velocity.y * dt;
 
         if dx.abs() > 0.01 || dy.abs() > 0.01 {
+            self.is_resizing_in_progress = true;
+
             let work_area = Platform::get_nearest_monitor_work_area(hwnd).unwrap_or_default();
             let vs = Platform::get_virtual_screen_rect();
 
@@ -670,22 +692,10 @@ impl App {
                 self.overlay
                     .prepare_surface(new_rect, is_shift_down, is_alt_down);
 
-            // Apply changes in a single atomic transaction
+            // Apply changes ONLY to overlay window in a single transaction (deleting target DeferWindowPos)
             unsafe {
-                if let Ok(hdwp) = BeginDeferWindowPos(2) {
+                if let Ok(hdwp) = BeginDeferWindowPos(1) {
                     let mut hdwp = hdwp;
-                    if let Ok(h) = DeferWindowPos(
-                        hdwp,
-                        hwnd,
-                        HWND::default(),
-                        new_rect.left,
-                        new_rect.top,
-                        new_rect.right - new_rect.left,
-                        new_rect.bottom - new_rect.top,
-                        SWP_NOACTIVATE | SWP_NOZORDER,
-                    ) {
-                        hdwp = h;
-                    }
                     if let Ok(h) = self.overlay.defer_update_position(hdwp, new_rect) {
                         hdwp = h;
                     }
@@ -819,5 +829,33 @@ impl App {
                 }
             }
         }
+    }
+
+    /// Commits the final overlay bounds to the physical target window.
+    fn commit_ghost_resize(&mut self) {
+        let hwnd = match self.active_window {
+            Some(h) => h,
+            None => return,
+        };
+
+        unsafe {
+            let _ = SetWindowPos(
+                hwnd,
+                HWND::default(),
+                self.window_rect.left,
+                self.window_rect.top,
+                self.window_rect.right - self.window_rect.left,
+                self.window_rect.bottom - self.window_rect.top,
+                SWP_NOACTIVATE | SWP_NOZORDER,
+            );
+        }
+
+        let _ = self.overlay.update_position(self.window_rect);
+        self.is_resizing_in_progress = false;
+        println!(
+            "App: Ghost resize committed (Size: {}x{})",
+            self.window_rect.right - self.window_rect.left,
+            self.window_rect.bottom - self.window_rect.top
+        );
     }
 }
