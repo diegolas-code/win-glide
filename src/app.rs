@@ -24,8 +24,10 @@ use windows::Win32::UI::WindowsAndMessaging::{
 
 /// The central application controller.
 pub struct App {
-    /// Physics simulation state.
+    /// Physics simulation state for translation.
     physics: PhysicsState,
+    /// Physics simulation state for resizing.
+    resize_physics: PhysicsState,
     /// Channel for receiving events from the input thread.
     event_rx: Receiver<InputEvent>,
     /// Handle to the input manager for coordination (e.g., shutdown).
@@ -46,8 +48,7 @@ pub struct App {
     width_f32: f32,
     /// High-precision height.
     height_f32: f32,
-    /// Configured resize speed.
-    resize_speed: f32,
+
     /// DPI of the current monitor (for future scaling support).
     dpi: u32,
     /// The visual overlay (tinted window).
@@ -73,8 +74,16 @@ impl App {
         resize_speed: f32,
         input_manager: Arc<InputManager>,
     ) -> Self {
+        let resize_physics_config = PhysicsConfig {
+            acceleration: resize_speed * 1.5,
+            friction: 10.0,
+            thrust_friction: 0.5,
+            top_speed: resize_speed,
+        };
+
         Self {
             physics: PhysicsState::new(physics_config),
+            resize_physics: PhysicsState::new(resize_physics_config),
             event_rx,
             input_manager,
             last_update: Instant::now(),
@@ -85,7 +94,7 @@ impl App {
             pos_y: 0.0,
             width_f32: 0.0,
             height_f32: 0.0,
-            resize_speed,
+
             dpi: 96,
             overlay: Overlay::new().expect("Failed to create Overlay"),
             last_sent_rect: RECT::default(),
@@ -149,12 +158,16 @@ impl App {
                 if self.is_resizing_active() {
                     // Zero out translation velocity to prevent drift during resizing actions
                     self.physics.velocity = Vector2D::default();
+                    self.apply_continuous_resize(dt, is_shift_down, is_alt_down);
                 } else {
                     // Reset dynamic minimum bounds constraints when resize is inactive
                     if self.detected_min_w.is_some() || self.detected_min_h.is_some() {
                         self.detected_min_w = None;
                         self.detected_min_h = None;
                     }
+                    // Reset resize velocity when resize is inactive
+                    self.resize_physics.velocity = Vector2D::default();
+
                     let is_thrusting = self.apply_thrust(dt);
                     self.update(dt, is_thrusting);
                     self.apply_movement(dt);
@@ -240,20 +253,7 @@ impl App {
                         match vk {
                             0x25..=0x28 => {
                                 // Arrow keys: Left, Up, Right, Down
-                                let is_shift_down =
-                                    unsafe { GetAsyncKeyState(VK_SHIFT.0 as i32) } as u16 & 0x8000
-                                        != 0;
-                                let is_alt_down =
-                                    unsafe { GetAsyncKeyState(VK_MENU.0 as i32) } as u16 & 0x8000
-                                        != 0;
-
-                                if is_shift_down || is_alt_down {
-                                    // Resizing: zero out translation velocity and perform step resize
-                                    self.physics.velocity = Vector2D::default();
-                                    self.perform_discrete_resize(vk, is_shift_down, is_alt_down);
-                                } else {
-                                    self.pressed_keys.insert(vk);
-                                }
+                                self.pressed_keys.insert(vk);
                             }
                             0x10..=0x12 | 0x5B..=0x5C | 0xA0..=0xA5 => {
                                 // Ignore modifiers (Shift, Ctrl, Alt, Win) to avoid
@@ -583,134 +583,128 @@ impl App {
         is_shift_down || is_alt_down
     }
 
-    /// Performs a discrete-step resize of the target window and overlays it correctly,
-    /// relying on background synchronization to correct bounds if application limits are hit.
-    fn perform_discrete_resize(&mut self, vk: u32, is_shift_down: bool, is_alt_down: bool) {
+    /// Applies continuous resizing based on resize physics state.
+    fn apply_continuous_resize(&mut self, dt: f32, is_shift_down: bool, is_alt_down: bool) {
         let hwnd = match self.active_window {
             Some(h) => h,
             None => return,
         };
 
-        // Query the target window's ACTUAL current dimensions to use as a baseline.
-        // This prevents prediction drift when sizing constraints are active.
-        let mut actual_rect = RECT::default();
-        let (current_x, current_y, current_w, current_h) = unsafe {
-            if GetWindowRect(hwnd, &mut actual_rect).is_ok() {
-                (
-                    actual_rect.left as f32,
-                    actual_rect.top as f32,
-                    (actual_rect.right - actual_rect.left) as f32,
-                    (actual_rect.bottom - actual_rect.top) as f32,
-                )
-            } else {
-                (self.pos_x, self.pos_y, self.width_f32, self.height_f32)
-            }
-        };
-
-        // Determine step size based on configured resize_speed
-        // Default: 600.0 / 12.0 = 50.0 pixels
-        let step = (self.resize_speed / 12.0).round().max(10.0);
-
-        let mut dx = 0.0;
-        let mut dy = 0.0;
-
-        match vk {
-            0x25 => dx = -step, // Left
-            0x27 => dx = step,  // Right
-            0x26 => dy = -step, // Up
-            0x28 => dy = step,  // Down
-            _ => return,
+        // 1. Calculate Resize Thrust
+        let mut thrust = Vector2D::default();
+        if self.pressed_keys.contains(&0x25) {
+            thrust.x -= 1.0;
+        }
+        if self.pressed_keys.contains(&0x27) {
+            thrust.x += 1.0;
+        }
+        if self.pressed_keys.contains(&0x26) {
+            thrust.y -= 1.0;
+        }
+        if self.pressed_keys.contains(&0x28) {
+            thrust.y += 1.0;
         }
 
-        let work_area = Platform::get_nearest_monitor_work_area(hwnd).unwrap_or_default();
-        let vs = Platform::get_virtual_screen_rect();
-
-        let (mut new_x, mut new_y, mut new_w, mut new_h) = crate::window::calculate_resized_rect(
-            current_x,
-            current_y,
-            current_w,
-            current_h,
-            is_shift_down,
-            is_alt_down,
-            dx,
-            dy,
-            self.dpi,
-            work_area,
-            vs,
-        );
-
-        // Clamp to dynamically detected application sizing limits
-        if is_alt_down {
-            if self.detected_min_w.is_some_and(|min_w| new_w < min_w) {
-                let min_w = self.detected_min_w.unwrap();
-                new_w = min_w;
-                // Shrink from Left: adjust position to keep right edge stationary
-                if dx > 0.0 {
-                    new_x = current_x + current_w - new_w;
-                }
-            }
-            if self.detected_min_h.is_some_and(|min_h| new_h < min_h) {
-                let min_h = self.detected_min_h.unwrap();
-                new_h = min_h;
-                // Shrink from Top: adjust position to keep bottom edge stationary
-                if dy > 0.0 {
-                    new_y = current_y + current_h - new_h;
-                }
-            }
+        let is_thrusting = thrust.x != 0.0 || thrust.y != 0.0;
+        if is_thrusting {
+            // Normalize diagonal thrust
+            let length = (thrust.x.powi(2) + thrust.y.powi(2)).sqrt();
+            thrust.x /= length;
+            thrust.y /= length;
+            self.resize_physics.apply_thrust(thrust, dt);
         }
 
-        let new_rect = RECT {
-            left: new_x.round() as i32,
-            top: new_y.round() as i32,
-            right: (new_x + new_w).round() as i32,
-            bottom: (new_y + new_h).round() as i32,
-        };
+        // 2. Update Resize Physics State (friction decay)
+        self.resize_physics.update(dt, is_thrusting);
 
-        // Pre-render the overlay content on the CPU BEFORE the DWM commit transaction
-        let prepared_surface = self
-            .overlay
-            .prepare_surface(new_rect, is_shift_down, is_alt_down);
+        // 3. Compute continuous dx and dy sizing deltas
+        let dx = self.resize_physics.velocity.x * dt;
+        let dy = self.resize_physics.velocity.y * dt;
 
-        // Apply changes to target window and overlay in a single atomic transaction
-        // (Omit SWP_NOCOPYBITS to allow smooth copy blits)
-        unsafe {
-            if let Ok(hdwp) = BeginDeferWindowPos(2) {
-                let mut hdwp = hdwp;
+        if dx.abs() > 0.01 || dy.abs() > 0.01 {
+            let work_area = Platform::get_nearest_monitor_work_area(hwnd).unwrap_or_default();
+            let vs = Platform::get_virtual_screen_rect();
 
-                // Position/Resize target window
-                if let Ok(h) = DeferWindowPos(
-                    hdwp,
-                    hwnd,
-                    HWND::default(),
-                    new_rect.left,
-                    new_rect.top,
-                    new_rect.right - new_rect.left,
-                    new_rect.bottom - new_rect.top,
-                    SWP_NOACTIVATE | SWP_NOZORDER,
-                ) {
-                    hdwp = h;
+            let (mut new_x, mut new_y, mut new_w, mut new_h) =
+                crate::window::calculate_resized_rect(
+                    self.pos_x,
+                    self.pos_y,
+                    self.width_f32,
+                    self.height_f32,
+                    is_shift_down,
+                    is_alt_down,
+                    dx,
+                    dy,
+                    self.dpi,
+                    work_area,
+                    vs,
+                );
+
+            // Clamp to dynamically detected application sizing limits
+            if is_alt_down {
+                if self.detected_min_w.is_some_and(|min_w| new_w < min_w) {
+                    let min_w = self.detected_min_w.unwrap();
+                    new_w = min_w;
+                    if dx > 0.0 {
+                        new_x = self.pos_x + self.width_f32 - new_w;
+                    }
                 }
-
-                // Position/Resize overlay window synchronously
-                if let Ok(h) = self.overlay.defer_update_position(hdwp, new_rect) {
-                    hdwp = h;
+                if self.detected_min_h.is_some_and(|min_h| new_h < min_h) {
+                    let min_h = self.detected_min_h.unwrap();
+                    new_h = min_h;
+                    if dy > 0.0 {
+                        new_y = self.pos_y + self.height_f32 - new_h;
+                    }
                 }
-
-                let _ = EndDeferWindowPos(hdwp);
             }
-        }
 
-        // Draw overlay immediately to the target size for zero latency visual feedback
-        self.window_rect = new_rect;
-        self.pos_x = new_x;
-        self.pos_y = new_y;
-        self.width_f32 = new_w;
-        self.height_f32 = new_h;
-        self.last_sent_rect = new_rect;
+            let new_rect = RECT {
+                left: new_x.round() as i32,
+                top: new_y.round() as i32,
+                right: (new_x + new_w).round() as i32,
+                bottom: (new_y + new_h).round() as i32,
+            };
 
-        // Upload prepared pixels immediately (reduces latency to <100µs)
-        if let Some(prepared) = prepared_surface {
-            let _ = self.overlay.commit_surface(prepared, new_rect);
+            // Pre-render the overlay content
+            let prepared_surface =
+                self.overlay
+                    .prepare_surface(new_rect, is_shift_down, is_alt_down);
+
+            // Apply changes in a single atomic transaction
+            unsafe {
+                if let Ok(hdwp) = BeginDeferWindowPos(2) {
+                    let mut hdwp = hdwp;
+                    if let Ok(h) = DeferWindowPos(
+                        hdwp,
+                        hwnd,
+                        HWND::default(),
+                        new_rect.left,
+                        new_rect.top,
+                        new_rect.right - new_rect.left,
+                        new_rect.bottom - new_rect.top,
+                        SWP_NOACTIVATE | SWP_NOZORDER,
+                    ) {
+                        hdwp = h;
+                    }
+                    if let Ok(h) = self.overlay.defer_update_position(hdwp, new_rect) {
+                        hdwp = h;
+                    }
+                    let _ = EndDeferWindowPos(hdwp);
+                }
+            }
+
+            // Update positions
+            self.window_rect = new_rect;
+            self.pos_x = new_x;
+            self.pos_y = new_y;
+            self.width_f32 = new_w;
+            self.height_f32 = new_h;
+            self.last_sent_rect = new_rect;
+
+            // Upload prepared pixels immediately
+            if let Some(prepared) = prepared_surface {
+                let _ = self.overlay.commit_surface(prepared, new_rect);
+            }
         }
     }
 
