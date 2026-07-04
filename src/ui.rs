@@ -247,8 +247,8 @@ impl Overlay {
             let is_cache_valid = cache_dc_opt.is_some()
                 && cache_bmp_opt.is_some()
                 && cache_old_opt.is_some()
-                && cache_w == width
-                && cache_h == height
+                && cache_w >= width
+                && cache_h >= height
                 && !bits.is_null();
 
             let mem_dc = if is_cache_valid {
@@ -265,7 +265,7 @@ impl Overlay {
                     let _ = DeleteDC(mem_dc);
                 }
 
-                // Allocate new compatible DC and DIB section
+                // Allocate new compatible DC and DIB section with 256px growth padding
                 let screen_dc = windows::Win32::Graphics::Gdi::GetDC(None);
                 if screen_dc.is_invalid() {
                     return None;
@@ -277,11 +277,14 @@ impl Overlay {
                     return None;
                 }
 
+                let alloc_w = width + 256;
+                let alloc_h = height + 256;
+
                 let bmi = BITMAPINFO {
                     bmiHeader: BITMAPINFOHEADER {
                         biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
-                        biWidth: width,
-                        biHeight: -height, // top-down
+                        biWidth: alloc_w,
+                        biHeight: -alloc_h, // top-down
                         biPlanes: 1,
                         biBitCount: 32,
                         biCompression: 0,
@@ -315,18 +318,25 @@ impl Overlay {
                 *self.cached_dc.borrow_mut() = Some(mem_dc);
                 *self.cached_bitmap.borrow_mut() = Some(bitmap);
                 *self.cached_old_bitmap.borrow_mut() = Some(old_bitmap);
-                self.cached_width.set(width);
-                self.cached_height.set(height);
+                self.cached_width.set(alloc_w);
+                self.cached_height.set(alloc_h);
                 self.cached_bits.set(new_bits as *mut u8);
                 bits = new_bits as *mut u8;
 
                 mem_dc
             };
 
-            // Wrap the DIB section's memory in a tiny-skia PixmapMut.
-            // This allows rendering directly into GDI-managed memory, eliminating a copy.
-            let slice = std::slice::from_raw_parts_mut(bits, (width * height * 4) as usize);
-            if let Some(mut pixmap) = PixmapMut::from_bytes(slice, width as u32, height as u32) {
+            let current_cache_w = self.cached_width.get();
+            let current_cache_h = self.cached_height.get();
+
+            // Wrap the DIB section's memory in a tiny-skia PixmapMut using cached buffer size.
+            let slice = std::slice::from_raw_parts_mut(
+                bits,
+                (current_cache_w * current_cache_h * 4) as usize,
+            );
+            if let Some(mut pixmap) =
+                PixmapMut::from_bytes(slice, current_cache_w as u32, current_cache_h as u32)
+            {
                 // Clear with transparent (GDI memory might be uninitialized)
                 pixmap.fill(Color::TRANSPARENT);
 
@@ -549,7 +559,7 @@ impl Overlay {
                     let scan_left = draw_rect.left.max(0) as usize;
                     let scan_right = (draw_rect.right as usize).min(width as usize);
 
-                    let stride = width as usize * 4;
+                    let stride = self.cached_width.get() as usize * 4;
                     for y in scan_top..scan_bottom {
                         let row_offset = y * stride;
                         for x in scan_left..scan_right {
@@ -807,11 +817,11 @@ mod tests {
             bottom: 400,
         };
 
-        // Call prepare_surface for the first time
+        // Call prepare_surface for the first time (allocates 300+256 by 307+256)
         let prepared1 = overlay.prepare_surface(rect1, false, false).unwrap();
         let dc1 = prepared1.mem_dc;
 
-        // Call prepare_surface again with the same dimensions (should hit cache)
+        // Call prepare_surface again with the same dimensions (should hit capacity cache)
         let prepared2 = overlay.prepare_surface(rect1, false, false).unwrap();
         let dc2 = prepared2.mem_dc;
 
@@ -820,17 +830,33 @@ mod tests {
             "DC should be cached and re-used for identical dimensions"
         );
 
-        // Call prepare_surface with different dimensions (should miss cache and allocate new DC)
-        let rect2 = RECT {
+        // Call prepare_surface with smaller dimensions (should hit capacity cache and re-use)
+        let rect_small = RECT {
             left: 100,
             top: 100,
-            right: 500,
-            bottom: 400,
+            right: 350,
+            bottom: 350,
         };
-        let prepared3 = overlay.prepare_surface(rect2, false, false).unwrap();
+        let prepared_small = overlay.prepare_surface(rect_small, false, false).unwrap();
+        assert_eq!(
+            prepared_small.mem_dc, dc1,
+            "DC should be re-used when dimensions are smaller than cache capacity"
+        );
+
+        // Call prepare_surface with dimensions exceeding capacity (should trigger reallocation)
+        let rect_large = RECT {
+            left: 100,
+            top: 100,
+            right: 700,
+            bottom: 700,
+        };
+        let prepared3 = overlay.prepare_surface(rect_large, false, false).unwrap();
         let _dc3 = prepared3.mem_dc;
 
-        assert_eq!(overlay.cached_width.get(), 400);
-        assert_eq!(overlay.cached_height.get(), 300 + OVERLAY_TOP_EXTENSION);
+        assert_eq!(overlay.cached_width.get(), 600 + 256);
+        assert_eq!(
+            overlay.cached_height.get(),
+            600 + OVERLAY_TOP_EXTENSION + 256
+        );
     }
 }
