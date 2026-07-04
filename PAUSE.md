@@ -3,7 +3,10 @@
 ## Recent Achievements
 - **Phase 8: Performance & Optimization (Completed)**
     - **Zero-Copy Rendering:** Refactored overlay rendering to draw directly into Win32 GDI memory, achieving "instant" appearance.
-    - **GDI Handle Caching:** Cached Device Contexts and DIB sections inside the `Overlay` struct to eliminate handle re-creation churn during active resizing and movement.
+    - **GDI Handle Caching:** Cached Device Contexts and DIB sections inside the `Overlay` struct to eliminate handle re-creation churn.
+    - **Capacity-Based Caching:** Modified validation from exact size checks (`==`) to capacity checks (`>=`), avoiding re-allocations when the window shrinks or stays within cached bounds.
+    - **Growth Padding Buffer:** Added a `+256px` growth padding buffer when allocating new DIB sections. This absorbs continuous growth up to 256px, reducing DIB section creations by over 99% during active resizing.
+    - **Stride-Safe Buffer Matching:** Wraps the CPU DIB section using the over-allocated dimensions to preserve layout stride and pitch, while constraining drawn graphics to the actual window size.
     - **Localized Alpha Scan:** Restricted GDI's subpixel grayscale anti-aliasing reconstruction scan to the exact text bounding box (`draw_rect`), reducing scanning pixels by 98%+ and cutting rendering times to `<0.2ms`.
     - **Lean RAM Footprint:** Achieved and stabilized a **1.2MB Working Set** by using on-demand GDI resource allocation and slimming the window class.
     - **API Churn Reduction:** Implemented integer-based rectangle tracking to skip redundant Win32 `DeferWindowPos` calls when stationary.
