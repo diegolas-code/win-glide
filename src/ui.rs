@@ -416,12 +416,21 @@ impl Overlay {
                 bits,
                 (current_cache_w * current_cache_h * 4) as usize,
             );
+
+            // Clear only the active region with transparency (GDI memory might be uninitialized)
+            let stride = current_cache_w as usize * 4;
+            let active_row_bytes = width as usize * 4;
+            for y in 0..height as usize {
+                let row_start = y * stride;
+                let row_end = row_start + active_row_bytes;
+                if row_end <= slice.len() {
+                    slice[row_start..row_end].fill(0);
+                }
+            }
+
             if let Some(mut pixmap) =
                 PixmapMut::from_bytes(slice, current_cache_w as u32, current_cache_h as u32)
             {
-                // Clear with transparent (GDI memory might be uninitialized)
-                pixmap.fill(Color::TRANSPARENT);
-
                 let mut paint = Paint::default();
                 // Optimization: Use pre-swapped color (BGRA) for direct compatibility.
                 paint.set_color(Color::from_rgba8(215, 120, 0, 50));
