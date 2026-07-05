@@ -696,10 +696,13 @@ impl Overlay {
                     let _ = DeleteObject(font);
 
                     // --- Alpha Channel Post-Processing (Localized Scan) ---
-                    let scan_top = draw_rect.top.max(0) as usize;
-                    let scan_bottom = (draw_rect.bottom as usize).min(height as usize);
-                    let scan_left = draw_rect.left.max(0) as usize;
-                    let scan_right = (draw_rect.right as usize).min(width as usize);
+                    let scan_padding = 8i32;
+                    let scan_top = (draw_rect.top - scan_padding).max(0) as usize;
+                    let scan_bottom =
+                        ((draw_rect.bottom + scan_padding) as usize).min(height as usize);
+                    let scan_left = (draw_rect.left - scan_padding).max(0) as usize;
+                    let scan_right =
+                        ((draw_rect.right + scan_padding) as usize).min(width as usize);
 
                     let stride = self.cached_width.get() as usize * 4;
                     for y in scan_top..scan_bottom {
