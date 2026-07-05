@@ -30,15 +30,37 @@ pub enum ArrowDirection {
     Right,
 }
 
+struct GdiBuffer {
+    dc: windows::Win32::Graphics::Gdi::HDC,
+    bitmap: windows::Win32::Graphics::Gdi::HBITMAP,
+    old_bitmap: windows::Win32::Graphics::Gdi::HGDIOBJ,
+    bits: *mut u8,
+}
+
+impl GdiBuffer {
+    fn clean(&self) {
+        unsafe {
+            if !self.dc.is_invalid() {
+                if !self.old_bitmap.is_invalid() {
+                    let _ = windows::Win32::Graphics::Gdi::SelectObject(self.dc, self.old_bitmap);
+                }
+                if !self.bitmap.is_invalid() {
+                    let _ = windows::Win32::Graphics::Gdi::DeleteObject(self.bitmap);
+                }
+                let _ = windows::Win32::Graphics::Gdi::DeleteDC(self.dc);
+            }
+        }
+    }
+}
+
 /// Manages a transparent overlay window.
 pub struct Overlay {
     pub hwnd: HWND,
-    cached_dc: std::cell::RefCell<Option<windows::Win32::Graphics::Gdi::HDC>>,
-    cached_bitmap: std::cell::RefCell<Option<windows::Win32::Graphics::Gdi::HBITMAP>>,
-    cached_old_bitmap: std::cell::RefCell<Option<windows::Win32::Graphics::Gdi::HGDIOBJ>>,
+    buffer_a: std::cell::RefCell<Option<GdiBuffer>>,
+    buffer_b: std::cell::RefCell<Option<GdiBuffer>>,
+    use_buffer_b: std::cell::Cell<bool>,
     cached_width: std::cell::Cell<i32>,
     cached_height: std::cell::Cell<i32>,
-    cached_bits: std::cell::Cell<*mut u8>,
     cached_arrow_size: std::cell::Cell<f32>,
     cached_path_up: std::cell::RefCell<Option<tiny_skia::Path>>,
     cached_path_down: std::cell::RefCell<Option<tiny_skia::Path>>,
@@ -48,20 +70,11 @@ pub struct Overlay {
 
 impl Drop for Overlay {
     fn drop(&mut self) {
-        unsafe {
-            let dc = self.cached_dc.replace(None);
-            let old_bmp = self.cached_old_bitmap.replace(None);
-            let bmp = self.cached_bitmap.replace(None);
-
-            if let Some(mem_dc) = dc.filter(|d| !d.is_invalid()) {
-                if let Some(old) = old_bmp.filter(|o| !o.is_invalid()) {
-                    let _ = windows::Win32::Graphics::Gdi::SelectObject(mem_dc, old);
-                }
-                if let Some(bitmap) = bmp.filter(|b| !b.is_invalid()) {
-                    let _ = windows::Win32::Graphics::Gdi::DeleteObject(bitmap);
-                }
-                let _ = windows::Win32::Graphics::Gdi::DeleteDC(mem_dc);
-            }
+        if let Some(buf) = self.buffer_a.replace(None) {
+            buf.clean();
+        }
+        if let Some(buf) = self.buffer_b.replace(None) {
+            buf.clean();
         }
     }
 }
@@ -131,12 +144,11 @@ impl Overlay {
 
         Ok(Self {
             hwnd,
-            cached_dc: std::cell::RefCell::new(None),
-            cached_bitmap: std::cell::RefCell::new(None),
-            cached_old_bitmap: std::cell::RefCell::new(None),
+            buffer_a: std::cell::RefCell::new(None),
+            buffer_b: std::cell::RefCell::new(None),
+            use_buffer_b: std::cell::Cell::new(false),
             cached_width: std::cell::Cell::new(0),
             cached_height: std::cell::Cell::new(0),
-            cached_bits: std::cell::Cell::new(std::ptr::null_mut()),
             cached_arrow_size: std::cell::Cell::new(0.0),
             cached_path_up: std::cell::RefCell::new(None),
             cached_path_down: std::cell::RefCell::new(None),
@@ -265,54 +277,43 @@ impl Overlay {
         }
 
         unsafe {
-            let cache_dc_opt = *self.cached_dc.borrow();
-            let cache_bmp_opt = *self.cached_bitmap.borrow();
-            let cache_old_opt = *self.cached_old_bitmap.borrow();
+            let has_buffer_a = self.buffer_a.borrow().is_some();
+            let has_buffer_b = self.buffer_b.borrow().is_some();
             let cache_w = self.cached_width.get();
             let cache_h = self.cached_height.get();
-            let mut bits = self.cached_bits.get();
 
-            let is_cache_valid = cache_dc_opt.is_some()
-                && cache_bmp_opt.is_some()
-                && cache_old_opt.is_some()
-                && cache_w >= width
-                && cache_h >= height
-                && !bits.is_null();
+            let is_cache_valid =
+                has_buffer_a && has_buffer_b && cache_w >= width && cache_h >= height;
 
-            let mem_dc = if is_cache_valid {
-                cache_dc_opt.unwrap()
-            } else {
-                // Cache Miss or resize: Clean up old cached resources first
-                if let Some(mem_dc) = cache_dc_opt.filter(|d| !d.is_invalid()) {
-                    if let Some(old) = cache_old_opt.filter(|o| !o.is_invalid()) {
-                        let _ = SelectObject(mem_dc, old);
-                    }
-                    if let Some(bmp) = cache_bmp_opt.filter(|b| !b.is_invalid()) {
-                        let _ = DeleteObject(bmp);
-                    }
-                    let _ = DeleteDC(mem_dc);
+            if !is_cache_valid {
+                // Clean up both old buffers
+                if let Some(buf) = self.buffer_a.replace(None) {
+                    buf.clean();
                 }
-
-                // Allocate new compatible DC and DIB section with 256px growth padding
-                let screen_dc = windows::Win32::Graphics::Gdi::GetDC(None);
-                if screen_dc.is_invalid() {
-                    return None;
-                }
-
-                let mem_dc = CreateCompatibleDC(screen_dc);
-                if mem_dc.is_invalid() {
-                    windows::Win32::Graphics::Gdi::ReleaseDC(None, screen_dc);
-                    return None;
+                if let Some(buf) = self.buffer_b.replace(None) {
+                    buf.clean();
                 }
 
                 let alloc_w = width + 256;
                 let alloc_h = height + 256;
 
+                // Allocate Buffer A
+                let screen_dc = windows::Win32::Graphics::Gdi::GetDC(None);
+                if screen_dc.is_invalid() {
+                    return None;
+                }
+
+                let dc_a = CreateCompatibleDC(screen_dc);
+                if dc_a.is_invalid() {
+                    windows::Win32::Graphics::Gdi::ReleaseDC(None, screen_dc);
+                    return None;
+                }
+
                 let bmi = BITMAPINFO {
                     bmiHeader: BITMAPINFOHEADER {
                         biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
                         biWidth: alloc_w,
-                        biHeight: -alloc_h, // top-down
+                        biHeight: -alloc_h,
                         biPlanes: 1,
                         biBitCount: 32,
                         biCompression: 0,
@@ -321,37 +322,77 @@ impl Overlay {
                     ..Default::default()
                 };
 
-                let mut new_bits = std::ptr::null_mut();
-                let bitmap =
-                    match CreateDIBSection(mem_dc, &bmi, DIB_RGB_COLORS, &mut new_bits, None, 0) {
-                        Ok(bmp) => bmp,
-                        Err(_) => {
-                            let _ = DeleteDC(mem_dc);
-                            windows::Win32::Graphics::Gdi::ReleaseDC(None, screen_dc);
-                            return None;
-                        }
-                    };
+                let mut bits_a = std::ptr::null_mut();
+                let bmp_a = match CreateDIBSection(dc_a, &bmi, DIB_RGB_COLORS, &mut bits_a, None, 0)
+                {
+                    Ok(bmp) => bmp,
+                    Err(_) => {
+                        let _ = DeleteDC(dc_a);
+                        windows::Win32::Graphics::Gdi::ReleaseDC(None, screen_dc);
+                        return None;
+                    }
+                };
+                let old_bmp_a = SelectObject(dc_a, bmp_a);
 
-                if new_bits.is_null() {
-                    let _ = DeleteObject(bitmap);
-                    let _ = DeleteDC(mem_dc);
+                // Allocate Buffer B
+                let dc_b = CreateCompatibleDC(screen_dc);
+                if dc_b.is_invalid() {
+                    if !old_bmp_a.is_invalid() {
+                        let _ = SelectObject(dc_a, old_bmp_a);
+                    }
+                    let _ = DeleteObject(bmp_a);
+                    let _ = DeleteDC(dc_a);
                     windows::Win32::Graphics::Gdi::ReleaseDC(None, screen_dc);
                     return None;
                 }
 
-                let old_bitmap = SelectObject(mem_dc, bitmap);
+                let mut bits_b = std::ptr::null_mut();
+                let bmp_b = match CreateDIBSection(dc_b, &bmi, DIB_RGB_COLORS, &mut bits_b, None, 0)
+                {
+                    Ok(bmp) => bmp,
+                    Err(_) => {
+                        if !old_bmp_a.is_invalid() {
+                            let _ = SelectObject(dc_a, old_bmp_a);
+                        }
+                        let _ = DeleteObject(bmp_a);
+                        let _ = DeleteDC(dc_a);
+                        let _ = DeleteDC(dc_b);
+                        windows::Win32::Graphics::Gdi::ReleaseDC(None, screen_dc);
+                        return None;
+                    }
+                };
+                let old_bmp_b = SelectObject(dc_b, bmp_b);
+
                 windows::Win32::Graphics::Gdi::ReleaseDC(None, screen_dc);
 
-                // Update cache
-                *self.cached_dc.borrow_mut() = Some(mem_dc);
-                *self.cached_bitmap.borrow_mut() = Some(bitmap);
-                *self.cached_old_bitmap.borrow_mut() = Some(old_bitmap);
+                *self.buffer_a.borrow_mut() = Some(GdiBuffer {
+                    dc: dc_a,
+                    bitmap: bmp_a,
+                    old_bitmap: old_bmp_a,
+                    bits: bits_a as *mut u8,
+                });
+
+                *self.buffer_b.borrow_mut() = Some(GdiBuffer {
+                    dc: dc_b,
+                    bitmap: bmp_b,
+                    old_bitmap: old_bmp_b,
+                    bits: bits_b as *mut u8,
+                });
+
                 self.cached_width.set(alloc_w);
                 self.cached_height.set(alloc_h);
-                self.cached_bits.set(new_bits as *mut u8);
-                bits = new_bits as *mut u8;
+            }
 
-                mem_dc
+            // Select the current back buffer
+            let use_b = self.use_buffer_b.get();
+            let (mem_dc, bits) = if use_b {
+                let borrow = self.buffer_b.borrow();
+                let buf = borrow.as_ref().unwrap();
+                (buf.dc, buf.bits)
+            } else {
+                let borrow = self.buffer_a.borrow();
+                let buf = borrow.as_ref().unwrap();
+                (buf.dc, buf.bits)
             };
 
             let current_cache_w = self.cached_width.get();
@@ -660,6 +701,10 @@ impl Overlay {
 
             windows::Win32::Graphics::Gdi::ReleaseDC(None, screen_dc);
 
+            if res.is_ok() {
+                self.use_buffer_b.set(!self.use_buffer_b.get());
+            }
+
             res
         }
     }
@@ -845,41 +890,54 @@ mod tests {
             bottom: 400,
         };
 
-        // Call prepare_surface for the first time (allocates 300+256 by 307+256)
+        // Frame 1: uses Buffer A
         let prepared1 = overlay.prepare_surface(rect1, false, false).unwrap();
-        let dc1 = prepared1.mem_dc;
+        let dc_a = prepared1.mem_dc;
+        overlay.commit_surface(prepared1, rect1).unwrap(); // swaps to Buffer B
 
-        // Call prepare_surface again with the same dimensions (should hit capacity cache)
+        // Frame 2: uses Buffer B
         let prepared2 = overlay.prepare_surface(rect1, false, false).unwrap();
-        let dc2 = prepared2.mem_dc;
+        let dc_b = prepared2.mem_dc;
+        assert_ne!(dc_a, dc_b, "Double buffering should return alternating DCs");
+        overlay.commit_surface(prepared2, rect1).unwrap(); // swaps back to Buffer A
 
-        assert_eq!(
-            dc1, dc2,
-            "DC should be cached and re-used for identical dimensions"
-        );
+        // Frame 3: uses Buffer A again
+        let prepared3 = overlay.prepare_surface(rect1, false, false).unwrap();
+        assert_eq!(prepared3.mem_dc, dc_a, "Third frame should reuse Buffer A");
 
-        // Call prepare_surface with smaller dimensions (should hit capacity cache and re-use)
+        // Smaller dimensions should hit capacity cache (not trigger reallocation)
         let rect_small = RECT {
             left: 100,
             top: 100,
             right: 350,
             bottom: 350,
         };
+        // Currently we are on Buffer A. We commit it -> swaps to Buffer B.
+        overlay.commit_surface(prepared3, rect1).unwrap();
         let prepared_small = overlay.prepare_surface(rect_small, false, false).unwrap();
         assert_eq!(
-            prepared_small.mem_dc, dc1,
+            prepared_small.mem_dc, dc_b,
             "DC should be re-used when dimensions are smaller than cache capacity"
         );
+        overlay.commit_surface(prepared_small, rect_small).unwrap(); // swaps back to Buffer A
 
-        // Call prepare_surface with dimensions exceeding capacity (should trigger reallocation)
+        // Large dimensions exceeding capacity -> triggers reallocation of both buffers
         let rect_large = RECT {
             left: 100,
             top: 100,
             right: 700,
             bottom: 700,
         };
-        let prepared3 = overlay.prepare_surface(rect_large, false, false).unwrap();
-        let _dc3 = prepared3.mem_dc;
+        let prepared_large = overlay.prepare_surface(rect_large, false, false).unwrap();
+        let dc_large_a = prepared_large.mem_dc;
+        assert_ne!(
+            dc_large_a, dc_a,
+            "Reallocation must create fresh DC handles"
+        );
+        assert_ne!(
+            dc_large_a, dc_b,
+            "Reallocation must create fresh DC handles"
+        );
 
         assert_eq!(overlay.cached_width.get(), 600 + 256);
         assert_eq!(
