@@ -144,7 +144,8 @@
 - [x] Introduce double-buffered pixmaps: Create a lock-step double-buffered rendering pipeline
 - [x] Pre-allocate GDI bitmaps: Pre-allocate standard dimension DIB sections to eliminate GDI allocation churn
 - [x] Add dirty-rect clipping: Limit redrawing to changed regions
-- [ ] Keep rendering in the main 120Hz loop: Preserve single-threaded simplicity
+- [x] Keep rendering in the main 120Hz loop: Preserve single-threaded simplicity
+- [x] Commit & Merge to dev
 
 ## Phase 11: Productization (The Road to v1.0.0)
 - [ ] Create a release-optimized build profile
