@@ -455,6 +455,12 @@ impl App {
                     self.last_modifiers_state = (false, false);
                     self.is_resizing_in_progress = false;
 
+                    // Pre-allocate GDI double buffers to virtual screen dimensions
+                    let vs = Platform::get_virtual_screen_rect();
+                    let max_w = vs.right - vs.left;
+                    let max_h = (vs.bottom - vs.top) + crate::ui::OVERLAY_TOP_EXTENSION;
+                    self.overlay.preallocate_buffers(max_w, max_h);
+
                     // Tell the input hooks to start intercepting/modifying input.
                     crate::input::set_session_active(true);
 
@@ -487,6 +493,7 @@ impl App {
         self.physics.velocity = Vector2D::default();
         self.pressed_keys.clear();
         self.overlay.show(false);
+        self.overlay.free_buffers();
         self.detected_min_w = None;
         self.detected_min_h = None;
         self.last_modifiers_state = (false, false);

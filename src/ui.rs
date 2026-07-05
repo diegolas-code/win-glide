@@ -261,6 +261,112 @@ impl Overlay {
         }
     }
 
+    /// Pre-allocates dual GDI buffers to the specified maximum dimensions.
+    pub fn preallocate_buffers(&self, max_w: i32, max_h: i32) {
+        unsafe {
+            // Clean up any existing buffers first
+            if let Some(buf) = self.buffer_a.replace(None) {
+                buf.clean();
+            }
+            if let Some(buf) = self.buffer_b.replace(None) {
+                buf.clean();
+            }
+
+            let screen_dc = windows::Win32::Graphics::Gdi::GetDC(None);
+            if screen_dc.is_invalid() {
+                return;
+            }
+
+            let dc_a = CreateCompatibleDC(screen_dc);
+            if dc_a.is_invalid() {
+                windows::Win32::Graphics::Gdi::ReleaseDC(None, screen_dc);
+                return;
+            }
+
+            let bmi = BITMAPINFO {
+                bmiHeader: BITMAPINFOHEADER {
+                    biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
+                    biWidth: max_w,
+                    biHeight: -max_h,
+                    biPlanes: 1,
+                    biBitCount: 32,
+                    biCompression: 0,
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+
+            let mut bits_a = std::ptr::null_mut();
+            let bmp_a = match CreateDIBSection(dc_a, &bmi, DIB_RGB_COLORS, &mut bits_a, None, 0) {
+                Ok(bmp) => bmp,
+                Err(_) => {
+                    let _ = DeleteDC(dc_a);
+                    windows::Win32::Graphics::Gdi::ReleaseDC(None, screen_dc);
+                    return;
+                }
+            };
+            let old_bmp_a = SelectObject(dc_a, bmp_a);
+
+            let dc_b = CreateCompatibleDC(screen_dc);
+            if dc_b.is_invalid() {
+                if !old_bmp_a.is_invalid() {
+                    let _ = SelectObject(dc_a, old_bmp_a);
+                }
+                let _ = DeleteObject(bmp_a);
+                let _ = DeleteDC(dc_a);
+                windows::Win32::Graphics::Gdi::ReleaseDC(None, screen_dc);
+                return;
+            }
+
+            let mut bits_b = std::ptr::null_mut();
+            let bmp_b = match CreateDIBSection(dc_b, &bmi, DIB_RGB_COLORS, &mut bits_b, None, 0) {
+                Ok(bmp) => bmp,
+                Err(_) => {
+                    if !old_bmp_a.is_invalid() {
+                        let _ = SelectObject(dc_a, old_bmp_a);
+                    }
+                    let _ = DeleteObject(bmp_a);
+                    let _ = DeleteDC(dc_a);
+                    let _ = DeleteDC(dc_b);
+                    windows::Win32::Graphics::Gdi::ReleaseDC(None, screen_dc);
+                    return;
+                }
+            };
+            let old_bmp_b = SelectObject(dc_b, bmp_b);
+
+            windows::Win32::Graphics::Gdi::ReleaseDC(None, screen_dc);
+
+            *self.buffer_a.borrow_mut() = Some(GdiBuffer {
+                dc: dc_a,
+                bitmap: bmp_a,
+                old_bitmap: old_bmp_a,
+                bits: bits_a as *mut u8,
+            });
+
+            *self.buffer_b.borrow_mut() = Some(GdiBuffer {
+                dc: dc_b,
+                bitmap: bmp_b,
+                old_bitmap: old_bmp_b,
+                bits: bits_b as *mut u8,
+            });
+
+            self.cached_width.set(max_w);
+            self.cached_height.set(max_h);
+        }
+    }
+
+    /// Frees both GDI buffers to return memory back to the baseline.
+    pub fn free_buffers(&self) {
+        if let Some(buf) = self.buffer_a.replace(None) {
+            buf.clean();
+        }
+        if let Some(buf) = self.buffer_b.replace(None) {
+            buf.clean();
+        }
+        self.cached_width.set(0);
+        self.cached_height.set(0);
+    }
+
     /// Prepares the overlay surface on the CPU by rendering into a GDI DIB section.
     /// Returns GDI handles wrapped in a RAII container.
     pub fn prepare_surface(
@@ -286,101 +392,8 @@ impl Overlay {
                 has_buffer_a && has_buffer_b && cache_w >= width && cache_h >= height;
 
             if !is_cache_valid {
-                // Clean up both old buffers
-                if let Some(buf) = self.buffer_a.replace(None) {
-                    buf.clean();
-                }
-                if let Some(buf) = self.buffer_b.replace(None) {
-                    buf.clean();
-                }
-
-                let alloc_w = width + 256;
-                let alloc_h = height + 256;
-
-                // Allocate Buffer A
-                let screen_dc = windows::Win32::Graphics::Gdi::GetDC(None);
-                if screen_dc.is_invalid() {
-                    return None;
-                }
-
-                let dc_a = CreateCompatibleDC(screen_dc);
-                if dc_a.is_invalid() {
-                    windows::Win32::Graphics::Gdi::ReleaseDC(None, screen_dc);
-                    return None;
-                }
-
-                let bmi = BITMAPINFO {
-                    bmiHeader: BITMAPINFOHEADER {
-                        biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
-                        biWidth: alloc_w,
-                        biHeight: -alloc_h,
-                        biPlanes: 1,
-                        biBitCount: 32,
-                        biCompression: 0,
-                        ..Default::default()
-                    },
-                    ..Default::default()
-                };
-
-                let mut bits_a = std::ptr::null_mut();
-                let bmp_a = match CreateDIBSection(dc_a, &bmi, DIB_RGB_COLORS, &mut bits_a, None, 0)
-                {
-                    Ok(bmp) => bmp,
-                    Err(_) => {
-                        let _ = DeleteDC(dc_a);
-                        windows::Win32::Graphics::Gdi::ReleaseDC(None, screen_dc);
-                        return None;
-                    }
-                };
-                let old_bmp_a = SelectObject(dc_a, bmp_a);
-
-                // Allocate Buffer B
-                let dc_b = CreateCompatibleDC(screen_dc);
-                if dc_b.is_invalid() {
-                    if !old_bmp_a.is_invalid() {
-                        let _ = SelectObject(dc_a, old_bmp_a);
-                    }
-                    let _ = DeleteObject(bmp_a);
-                    let _ = DeleteDC(dc_a);
-                    windows::Win32::Graphics::Gdi::ReleaseDC(None, screen_dc);
-                    return None;
-                }
-
-                let mut bits_b = std::ptr::null_mut();
-                let bmp_b = match CreateDIBSection(dc_b, &bmi, DIB_RGB_COLORS, &mut bits_b, None, 0)
-                {
-                    Ok(bmp) => bmp,
-                    Err(_) => {
-                        if !old_bmp_a.is_invalid() {
-                            let _ = SelectObject(dc_a, old_bmp_a);
-                        }
-                        let _ = DeleteObject(bmp_a);
-                        let _ = DeleteDC(dc_a);
-                        let _ = DeleteDC(dc_b);
-                        windows::Win32::Graphics::Gdi::ReleaseDC(None, screen_dc);
-                        return None;
-                    }
-                };
-                let old_bmp_b = SelectObject(dc_b, bmp_b);
-
-                windows::Win32::Graphics::Gdi::ReleaseDC(None, screen_dc);
-
-                *self.buffer_a.borrow_mut() = Some(GdiBuffer {
-                    dc: dc_a,
-                    bitmap: bmp_a,
-                    old_bitmap: old_bmp_a,
-                    bits: bits_a as *mut u8,
-                });
-
-                *self.buffer_b.borrow_mut() = Some(GdiBuffer {
-                    dc: dc_b,
-                    bitmap: bmp_b,
-                    old_bitmap: old_bmp_b,
-                    bits: bits_b as *mut u8,
-                });
-
-                self.cached_width.set(alloc_w);
-                self.cached_height.set(alloc_h);
+                // Fallback allocation if pre-allocation was not called or is too small
+                self.preallocate_buffers(width + 256, height + 256);
             }
 
             // Select the current back buffer
