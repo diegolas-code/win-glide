@@ -54,7 +54,7 @@
     - [x] Cache arrow paths (Completed: path geometries for chevrons cached in Overlay to avoid heap allocation/builder overhead at 120Hz).
     - [x] Introduce double-buffered pixmaps (Completed: dual GDI buffers selected alternately for tearing-free overlay rendering).
     - [x] Pre-allocate GDI bitmaps (Completed: double-buffered GDI DIB sections pre-allocated to virtual screen dimensions on session activation, eliminating allocation latency from resizing loop).
-    - [ ] Add dirty-rect clipping.
+    - [x] Add dirty-rect clipping (Completed: cleared only the active overlay target window sub-region instead of the entire pre-allocated virtual screen buffer, saving massive memory bandwidth).
     - [ ] Keep rendering in the main 120Hz loop.
 
 - **Phase 11: Productization (The Road to v1.0.0)**

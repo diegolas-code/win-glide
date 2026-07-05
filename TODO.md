@@ -143,7 +143,7 @@
 - [x] Cache arrow paths: Cache compiled path geometries for chevrons inside the `Overlay` struct to avoid rebuilding them at 120Hz
 - [x] Introduce double-buffered pixmaps: Create a lock-step double-buffered rendering pipeline
 - [x] Pre-allocate GDI bitmaps: Pre-allocate standard dimension DIB sections to eliminate GDI allocation churn
-- [ ] Add dirty-rect clipping: Limit redrawing to changed regions
+- [x] Add dirty-rect clipping: Limit redrawing to changed regions
 - [ ] Keep rendering in the main 120Hz loop: Preserve single-threaded simplicity
 
 ## Phase 11: Productization (The Road to v1.0.0)
