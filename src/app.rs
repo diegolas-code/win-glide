@@ -257,9 +257,16 @@ impl App {
                     println!("Hotkey triggered (ID: {})", id);
                     if id == 1337 {
                         self.activate_session();
-                        // Force a message pump to ensure the window shows up immediately
-                        // without waiting for the next loop iteration.
-                        self.pump_messages();
+                        crate::input::set_session_active(true);
+
+                        // Setup the overlay to "tint" the target window.
+                        self.overlay
+                            .set_owner(self.active_window.expect("No active window"));
+                        // Redraw overlay without modifiers
+                        let _ = self.overlay.redraw(self.window_rect, false, false);
+                        self.last_sent_rect = self.window_rect;
+                        // Show overlay after redraw
+                        self.overlay.show(true);
                     } else if id == 1338 {
                         let target_hwnd = if let Some(active) = self.active_window {
                             active
@@ -453,8 +460,10 @@ impl App {
 
                     // Setup the overlay to "tint" the target window.
                     self.overlay.set_owner(hwnd);
+                    // Redraw overlay without modifiers
                     let _ = self.overlay.redraw(self.window_rect, false, false);
                     self.last_sent_rect = self.window_rect;
+                    // Show overlay after redraw
                     self.overlay.show(true);
                     // Force a message pump to ensure the window shows up immediately
                     // without waiting for the next loop iteration.
