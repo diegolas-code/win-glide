@@ -50,6 +50,13 @@
     - **Overlay Help Legends:** Renders centered, regular weight (non-bold, i.e., `400`), DPI-scaled "Segoe UI" help instructions at 18px size. Key names are formatted inside brackets (e.g. `[Shift]`, `[Alt]`, `[Arrow keys]`). The instructions dynamically adapt: displays detailed guides when idle, a simplified direction instruction when moving, and outward/inward guides when `Shift`/`Alt` are held. Features GDI `ANTIALIASED_QUALITY` grayscale smoothing and a custom alpha reconstruction loop using the Red channel `r` to eliminate text border pixelation. Shares the exact same 80% opacity value (`INDICATOR_OPACITY = 204`) as the chevrons.
 
 ## Immediate Next Steps
+- **Phase 10b: Resizing and Redraw Smoothness Optimizations**
+    - [x] Cache arrow paths (Completed: path geometries for chevrons cached in Overlay to avoid heap allocation/builder overhead at 120Hz).
+    - [ ] Introduce double-buffered pixmaps.
+    - [ ] Pre-allocate GDI bitmaps.
+    - [ ] Add dirty-rect clipping.
+    - [ ] Keep rendering in the main 120Hz loop.
+
 - **Phase 11: Productization (The Road to v1.0.0)**
     - Create a release-optimized build profile.
     - Implement a system tray icon for easy exit and status visibility.

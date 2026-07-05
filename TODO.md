@@ -139,6 +139,13 @@
 - [x] Implement DPI-scaled overlay help text legends and GDI alpha-channel post-processing reconstruction
 - [x] Commit & Merge to dev
 
+## Phase 10b: Resizing and Redraw Smoothness Optimizations
+- [x] Cache arrow paths: Cache compiled path geometries for chevrons inside the `Overlay` struct to avoid rebuilding them at 120Hz
+- [ ] Introduce double-buffered pixmaps: Create a lock-step double-buffered rendering pipeline
+- [ ] Pre-allocate GDI bitmaps: Pre-allocate standard dimension DIB sections to eliminate GDI allocation churn
+- [ ] Add dirty-rect clipping: Limit redrawing to changed regions
+- [ ] Keep rendering in the main 120Hz loop: Preserve single-threaded simplicity
+
 ## Phase 11: Productization (The Road to v1.0.0)
 - [ ] Create a release-optimized build profile
 - [ ] Implement a system tray icon for easy exit and status visibility
