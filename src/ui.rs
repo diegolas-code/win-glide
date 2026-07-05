@@ -714,12 +714,17 @@ impl Overlay {
                             if r_val > 0 {
                                 let intensity = r_val as f32 / 255.0;
                                 let bg_alpha = *a;
-                                *a = (bg_alpha as f32
-                                    + (INDICATOR_OPACITY as f32 - bg_alpha as f32) * intensity)
+
+                                // Pre-multiplied alpha blend for white text on black background
+                                let text_alpha = (intensity * INDICATOR_OPACITY as f32) as u8;
+                                let new_alpha = (text_alpha as f32
+                                    + (1.0 - text_alpha as f32 / 255.0) * bg_alpha as f32)
                                     as u8;
-                                slice[offset] = 255; // Blue
-                                slice[offset + 1] = 255; // Green
-                                slice[offset + 2] = 255; // Red
+
+                                *a = new_alpha;
+                                slice[offset] = text_alpha; // Blue (pre-multiplied)
+                                slice[offset + 1] = text_alpha; // Green
+                                slice[offset + 2] = text_alpha; // Red
                             }
                         }
                     }
