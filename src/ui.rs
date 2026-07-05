@@ -633,6 +633,52 @@ impl Overlay {
                         bottom: target_top + y_offset + text_height,
                     };
 
+                    // Draw text background on pixmap
+                    {
+                        if let Some(mut pixmap) = PixmapMut::from_bytes(
+                            slice,
+                            current_cache_w as u32,
+                            current_cache_h as u32,
+                        ) {
+                            let bg_r = 6.0f32; // Corner radius
+                            let bg_pad_x = 12.0f32;
+                            let bg_pad_y = 8.0f32;
+
+                            let bg_left =
+                                (draw_rect.left as f32 - bg_pad_x).max(target_left as f32);
+                            let bg_right =
+                                (draw_rect.right as f32 + bg_pad_x).min(target_right as f32);
+                            let bg_top = (draw_rect.top as f32 - bg_pad_y).max(target_top as f32);
+                            let bg_bottom =
+                                (draw_rect.bottom as f32 + bg_pad_y).min(target_bottom as f32);
+
+                            let mut bg_pb = PathBuilder::new();
+                            bg_pb.move_to(bg_left + bg_r, bg_top);
+                            bg_pb.line_to(bg_right - bg_r, bg_top);
+                            bg_pb.quad_to(bg_right, bg_top, bg_right, bg_top + bg_r);
+                            bg_pb.line_to(bg_right, bg_bottom - bg_r);
+                            bg_pb.quad_to(bg_right, bg_bottom, bg_right - bg_r, bg_bottom);
+                            bg_pb.line_to(bg_left + bg_r, bg_bottom);
+                            bg_pb.quad_to(bg_left, bg_bottom, bg_left, bg_bottom - bg_r);
+                            bg_pb.line_to(bg_left, bg_top + bg_r);
+                            bg_pb.quad_to(bg_left, bg_top, bg_left + bg_r, bg_top);
+                            bg_pb.close();
+
+                            if let Some(bg_path) = bg_pb.finish() {
+                                let mut bg_paint = Paint::default();
+                                bg_paint.set_color(Color::from_rgba8(0, 0, 0, 25)); // 0.1 alpha (25/255)
+                                bg_paint.anti_alias = true;
+                                pixmap.fill_path(
+                                    &bg_path,
+                                    &bg_paint,
+                                    FillRule::Winding,
+                                    Transform::identity(),
+                                    None,
+                                );
+                            }
+                        }
+                    }
+
                     // 3. Draw text
                     let _ = DrawTextW(
                         mem_dc,
