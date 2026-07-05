@@ -1,9 +1,9 @@
 {
   "physics": {
-    "acceleration": 4000.0,
-    "friction": 10.0,
+    "acceleration": 2600.0,
+    "friction": 11.0,
     "thrust_friction": 0.5,
-    "top_speed": 4000.0
+    "top_speed": 2250.0
   },
   "resize_speed": 600.0,
   "resize_physics": {
