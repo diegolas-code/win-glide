@@ -621,15 +621,20 @@ impl Overlay {
                         DT_CENTER | DT_WORDBREAK | DT_CALCRECT,
                     );
 
-                    // 2. Center vertically
+                    // 2. Center vertically and horizontally
+                    let text_width = rect.right - rect.left;
                     let text_height = rect.bottom - rect.top;
+
+                    let available_width = target_right - target_left;
+                    let x_offset = ((available_width - text_width) / 2).max(0);
+
                     let available_height = target_bottom - target_top;
                     let y_offset = ((available_height - text_height) / 2).max(0);
 
                     let mut draw_rect = RECT {
-                        left: target_left,
+                        left: target_left + x_offset,
                         top: target_top + y_offset,
-                        right: target_right,
+                        right: target_left + x_offset + text_width,
                         bottom: target_top + y_offset + text_height,
                     };
 
@@ -666,7 +671,7 @@ impl Overlay {
 
                             if let Some(bg_path) = bg_pb.finish() {
                                 let mut bg_paint = Paint::default();
-                                bg_paint.set_color(Color::from_rgba8(0, 0, 0, 25)); // 0.1 alpha (25/255)
+                                bg_paint.set_color(Color::from_rgba8(0, 0, 0, 76)); // 0.3 alpha (76/255)
                                 bg_paint.anti_alias = true;
                                 pixmap.fill_path(
                                     &bg_path,

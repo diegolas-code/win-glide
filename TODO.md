@@ -147,6 +147,11 @@
 - [x] Keep rendering in the main 120Hz loop: Preserve single-threaded simplicity
 - [x] Commit & Merge to dev
 
+## Phase 10c: Usability & Physics Fine-tunes
+- [x] Tune translation glide speed: Reduce acceleration to 2600.0, top speed to 2250.0, and set friction to 11.0 in `config.json`
+- [x] Legibility overlay background: Render a 0.1 alpha black rounded background behind text legends
+- [x] Commit & Merge to dev
+
 ## Phase 11: Productization (The Road to v1.0.0)
 - [ ] Create a release-optimized build profile
 - [ ] Implement a system tray icon for easy exit and status visibility

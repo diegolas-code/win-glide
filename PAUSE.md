@@ -56,6 +56,10 @@
     - **Active Region Clearing (Dirty-Rect):** Rewrote the clear loop to only zero out the GDI memory block belonging to the active target window region, saving up to 90% of memory write bandwidth.
     - **Synchronous Rendering Loop:** Preserved rendering synchronously inside the main 120Hz thread loop, ensuring precise frame coordination without threading complexity.
 
+- **Phase 10c: Usability & Physics Fine-tunes (Completed)**
+    - **Glide Speed Calibration**: Reduced acceleration from 4000 to 2600, top speed from 4000 to 2250, and set friction to 11.0 to prevent layout control overshoot and ensure snappy yet controllable glide physics.
+    - **Help Text Contrast enhancement**: Implemented a padded, rounded rectangle filled with a 10% black color block (`0, 0, 0` at `25` alpha) drawn directly onto the backing DIB section via `tiny-skia` before text composition. This significantly improves legibility on light/complex windows.
+
 ## Immediate Next Steps
 - **Phase 11: Productization (The Road to v1.0.0)**
     - Create a release-optimized build profile.
