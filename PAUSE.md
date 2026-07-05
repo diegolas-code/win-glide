@@ -53,7 +53,7 @@
 - **Phase 10b: Resizing and Redraw Smoothness Optimizations**
     - [x] Cache arrow paths (Completed: path geometries for chevrons cached in Overlay to avoid heap allocation/builder overhead at 120Hz).
     - [x] Introduce double-buffered pixmaps (Completed: dual GDI buffers selected alternately for tearing-free overlay rendering).
-    - [ ] Pre-allocate GDI bitmaps.
+    - [x] Pre-allocate GDI bitmaps (Completed: double-buffered GDI DIB sections pre-allocated to virtual screen dimensions on session activation, eliminating allocation latency from resizing loop).
     - [ ] Add dirty-rect clipping.
     - [ ] Keep rendering in the main 120Hz loop.
 
