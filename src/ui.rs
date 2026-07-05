@@ -30,58 +30,6 @@ pub enum ArrowDirection {
     Right,
 }
 
-fn draw_arrow(
-    pixmap: &mut tiny_skia::PixmapMut,
-    paint: &tiny_skia::Paint,
-    center_x: f32,
-    center_y: f32,
-    size: f32,
-    direction: ArrowDirection,
-    dpi_scale: f32,
-) {
-    let half_w = size / 2.0;
-    let half_h = size / 4.0;
-    let mut pb = tiny_skia::PathBuilder::new();
-    match direction {
-        ArrowDirection::Up => {
-            pb.move_to(center_x - half_w, center_y + half_h);
-            pb.line_to(center_x, center_y - half_h);
-            pb.line_to(center_x + half_w, center_y + half_h);
-        }
-        ArrowDirection::Down => {
-            pb.move_to(center_x - half_w, center_y - half_h);
-            pb.line_to(center_x, center_y + half_h);
-            pb.line_to(center_x + half_w, center_y - half_h);
-        }
-        ArrowDirection::Left => {
-            pb.move_to(center_x + half_h, center_y - half_w);
-            pb.line_to(center_x - half_h, center_y);
-            pb.line_to(center_x + half_h, center_y + half_w);
-        }
-        ArrowDirection::Right => {
-            pb.move_to(center_x - half_h, center_y - half_w);
-            pb.line_to(center_x + half_h, center_y);
-            pb.line_to(center_x - half_h, center_y + half_w);
-        }
-    }
-    if let Some(path) = pb.finish() {
-        let stroke = Stroke {
-            width: 8.0 * dpi_scale,
-            line_cap: LineCap::Round,
-            line_join: LineJoin::Round,
-            ..Stroke::default()
-        };
-
-        pixmap.stroke_path(
-            &path,
-            paint,
-            &stroke,
-            tiny_skia::Transform::identity(),
-            None,
-        );
-    }
-}
-
 /// Manages a transparent overlay window.
 pub struct Overlay {
     pub hwnd: HWND,
@@ -91,6 +39,11 @@ pub struct Overlay {
     cached_width: std::cell::Cell<i32>,
     cached_height: std::cell::Cell<i32>,
     cached_bits: std::cell::Cell<*mut u8>,
+    cached_arrow_size: std::cell::Cell<f32>,
+    cached_path_up: std::cell::RefCell<Option<tiny_skia::Path>>,
+    cached_path_down: std::cell::RefCell<Option<tiny_skia::Path>>,
+    cached_path_left: std::cell::RefCell<Option<tiny_skia::Path>>,
+    cached_path_right: std::cell::RefCell<Option<tiny_skia::Path>>,
 }
 
 impl Drop for Overlay {
@@ -184,6 +137,11 @@ impl Overlay {
             cached_width: std::cell::Cell::new(0),
             cached_height: std::cell::Cell::new(0),
             cached_bits: std::cell::Cell::new(std::ptr::null_mut()),
+            cached_arrow_size: std::cell::Cell::new(0.0),
+            cached_path_up: std::cell::RefCell::new(None),
+            cached_path_down: std::cell::RefCell::new(None),
+            cached_path_left: std::cell::RefCell::new(None),
+            cached_path_right: std::cell::RefCell::new(None),
         })
     }
 
@@ -218,6 +176,76 @@ impl Overlay {
                 0,
                 SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
             );
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn draw_arrow(
+        &self,
+        pixmap: &mut tiny_skia::PixmapMut,
+        paint: &tiny_skia::Paint,
+        center_x: f32,
+        center_y: f32,
+        size: f32,
+        direction: ArrowDirection,
+        dpi_scale: f32,
+    ) {
+        if self.cached_arrow_size.get() != size {
+            self.cached_arrow_size.set(size);
+            *self.cached_path_up.borrow_mut() = None;
+            *self.cached_path_down.borrow_mut() = None;
+            *self.cached_path_left.borrow_mut() = None;
+            *self.cached_path_right.borrow_mut() = None;
+        }
+
+        let path_cell = match direction {
+            ArrowDirection::Up => &self.cached_path_up,
+            ArrowDirection::Down => &self.cached_path_down,
+            ArrowDirection::Left => &self.cached_path_left,
+            ArrowDirection::Right => &self.cached_path_right,
+        };
+
+        let mut path_borrow = path_cell.borrow_mut();
+        if path_borrow.is_none() {
+            let half_w = size / 2.0;
+            let half_h = size / 4.0;
+            let mut pb = tiny_skia::PathBuilder::new();
+            match direction {
+                ArrowDirection::Up => {
+                    pb.move_to(-half_w, half_h);
+                    pb.line_to(0.0, -half_h);
+                    pb.line_to(half_w, half_h);
+                }
+                ArrowDirection::Down => {
+                    pb.move_to(-half_w, -half_h);
+                    pb.line_to(0.0, half_h);
+                    pb.line_to(half_w, -half_h);
+                }
+                ArrowDirection::Left => {
+                    pb.move_to(half_h, -half_w);
+                    pb.line_to(-half_h, 0.0);
+                    pb.line_to(half_h, half_w);
+                }
+                ArrowDirection::Right => {
+                    pb.move_to(-half_h, -half_w);
+                    pb.line_to(half_h, 0.0);
+                    pb.line_to(-half_h, half_w);
+                }
+            }
+            *path_borrow = pb.finish();
+        }
+
+        if let Some(ref path) = *path_borrow {
+            let stroke = Stroke {
+                width: 8.0 * dpi_scale,
+                line_cap: LineCap::Round,
+                line_join: LineJoin::Round,
+                ..Stroke::default()
+            };
+
+            let transform = tiny_skia::Transform::from_translate(center_x, center_y);
+
+            pixmap.stroke_path(path, paint, &stroke, transform, None);
         }
     }
 
@@ -416,7 +444,7 @@ impl Overlay {
                     };
 
                     // Top Arrow
-                    draw_arrow(
+                    self.draw_arrow(
                         &mut pixmap,
                         &white_paint,
                         w / 2.0,
@@ -427,7 +455,7 @@ impl Overlay {
                     );
 
                     // Bottom Arrow
-                    draw_arrow(
+                    self.draw_arrow(
                         &mut pixmap,
                         &white_paint,
                         w / 2.0,
@@ -438,7 +466,7 @@ impl Overlay {
                     );
 
                     // Left Arrow
-                    draw_arrow(
+                    self.draw_arrow(
                         &mut pixmap,
                         &white_paint,
                         margin + arrow_size / 2.0,
@@ -449,7 +477,7 @@ impl Overlay {
                     );
 
                     // Right Arrow
-                    draw_arrow(
+                    self.draw_arrow(
                         &mut pixmap,
                         &white_paint,
                         w - margin - arrow_size / 2.0,
