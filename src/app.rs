@@ -67,6 +67,8 @@ pub struct App {
     is_resizing_in_progress: bool,
     /// Flag to keep the main loop running.
     running: bool,
+    /// Tracks if the window was moving in the previous frame.
+    was_moving: bool,
 }
 
 impl App {
@@ -105,6 +107,7 @@ impl App {
             last_modifiers_state: (false, false),
             is_resizing_in_progress: false,
             running: true,
+            was_moving: false,
         }
     }
 
@@ -188,6 +191,21 @@ impl App {
                     let is_thrusting = self.apply_thrust(dt);
                     self.update(dt, is_thrusting);
                     self.apply_movement(dt);
+
+                    let current_moving =
+                        self.physics.velocity.x != 0.0 || self.physics.velocity.y != 0.0;
+                    if current_moving {
+                        self.was_moving = true;
+                    } else if self.was_moving {
+                        println!(
+                            "App: Window glide stopped (Pos: {}, {} | Size: {}x{})",
+                            self.window_rect.left,
+                            self.window_rect.top,
+                            self.window_rect.right - self.window_rect.left,
+                            self.window_rect.bottom - self.window_rect.top
+                        );
+                        self.was_moving = false;
+                    }
                 }
             }
 
@@ -485,9 +503,13 @@ impl App {
             return;
         }
         println!(
-            "App: Deactivating session (Final position: {}, {})",
-            self.window_rect.left, self.window_rect.top
+            "App: Deactivating session (Pos: {}, {} | Size: {}x{})",
+            self.window_rect.left,
+            self.window_rect.top,
+            self.window_rect.right - self.window_rect.left,
+            self.window_rect.bottom - self.window_rect.top
         );
+        self.was_moving = false;
         crate::input::set_session_active(false);
         self.active_window = None;
         self.physics.velocity = Vector2D::default();
@@ -874,7 +896,9 @@ impl App {
         let _ = self.overlay.update_position(self.window_rect);
         self.is_resizing_in_progress = false;
         println!(
-            "App: Ghost resize committed (Size: {}x{})",
+            "App: Ghost resize committed (Pos: {}, {} | Size: {}x{})",
+            self.window_rect.left,
+            self.window_rect.top,
             self.window_rect.right - self.window_rect.left,
             self.window_rect.bottom - self.window_rect.top
         );
