@@ -738,34 +738,31 @@ impl App {
                 bottom: (new_y + new_h).round() as i32,
             };
 
-            // Pre-render the overlay content
-            let prepared_surface =
-                self.overlay
-                    .prepare_surface(new_rect, self.dpi, is_shift_down, is_alt_down);
+            // Optimization: Only update the physical overlay window and redraw if the rounded integer bounds change.
+            if new_rect.left != self.last_sent_rect.left
+                || new_rect.top != self.last_sent_rect.top
+                || new_rect.right != self.last_sent_rect.right
+                || new_rect.bottom != self.last_sent_rect.bottom
+            {
+                // Pre-render the overlay content
+                let prepared_surface =
+                    self.overlay
+                        .prepare_surface(new_rect, self.dpi, is_shift_down, is_alt_down);
 
-            // Apply changes ONLY to overlay window in a single transaction (deleting target DeferWindowPos)
-            unsafe {
-                if let Ok(hdwp) = BeginDeferWindowPos(1) {
-                    let mut hdwp = hdwp;
-                    if let Ok(h) = self.overlay.defer_update_position(hdwp, new_rect) {
-                        hdwp = h;
-                    }
-                    let _ = EndDeferWindowPos(hdwp);
+                // Upload prepared pixels and resize/move overlay window atomically using UpdateLayeredWindow
+                if let Some(prepared) = prepared_surface {
+                    let _ = self.overlay.commit_surface(prepared, new_rect);
                 }
+
+                self.last_sent_rect = new_rect;
             }
 
-            // Update positions
+            // Always update positions on every tick to accumulate continuous physics smoothly
             self.window_rect = new_rect;
             self.pos_x = new_x;
             self.pos_y = new_y;
             self.width_f32 = new_w;
             self.height_f32 = new_h;
-            self.last_sent_rect = new_rect;
-
-            // Upload prepared pixels immediately
-            if let Some(prepared) = prepared_surface {
-                let _ = self.overlay.commit_surface(prepared, new_rect);
-            }
         }
     }
 
