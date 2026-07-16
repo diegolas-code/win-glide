@@ -61,6 +61,11 @@
     - **Help Text Contrast enhancement**: Implemented a padded, rounded rectangle filled with a 10% black color block (`0, 0, 0` at `25` alpha) drawn directly onto the backing DIB section via `tiny-skia` before text composition. This significantly improves legibility on light/complex windows.
 
 ## Immediate Next Steps
+- **Phase 10d: Stability & Codebase Review Fixes**
+    - Implement defensive activation checks in `App::process_events` to prevent crash panics on rejected windows.
+    - Update `Overlay::prepare_surface` and `Overlay::redraw` to accept the window DPI from `App::dpi` directly, removing GDI calls in the loop.
+    - Update `Config::load` and `Config::save` to resolve the `config.json` path next to the running executable binary.
+    - Align comments, `README.md`, and `SPEC.md` to reflect continuous resizing physics.
 - **Phase 11: Productization (The Road to v1.0.0)**
     - Create a release-optimized build profile.
     - Implement a system tray icon for easy exit and status visibility.
@@ -73,3 +78,4 @@
 - The app is optimized for "silence" - consuming near-zero CPU and minimizing OS API interaction while backgrounded.
 - Center-window design handles both active glide sessions (stops glide drift and updates overlay) and inactive sessions (moves foreground window directly) with safety policies in place.
 - Resizing operates on continuous momentum-based accumulator logic to keep dimensions fluid and frame-rate independent.
+

@@ -17,8 +17,7 @@ win-glide is a high-performance Windows utility for rapid, momentum-based window
 
 ## 4. Multi-Monitor & DPI
 *   **Virtual Coordinates:** Seamless movement across all monitors in the virtual desktop.
-*   **DPI Awareness:** `PerMonitorV2`. Visual speed (thrust) and border thickness are normalized against the current monitor's DPI.
-*   **Boundary Handling:** Movement respects the `WorkArea` (excludes Taskbar).
+*   **DPI Awareness:** `PerMonitorV2`. Visual speed (thrust) and border thickness are normalized against the target window's monitor DPI, passed directly to the renderer.
 
 ## 5. Visuals & UI
 *   **Overlay:** A 3px transparent layered window border rendered via `tiny-skia`.
@@ -31,6 +30,7 @@ win-glide is a high-performance Windows utility for rapid, momentum-based window
 *   **Activation:** Global Hotkey (`RegisterHotKey`) set to `Ctrl + Alt + F10`.
 *   **Hooks:** `WH_KEYBOARD_LL` and `WH_MOUSE_LL` (low-level, non-blocking).
 *   **Movement:** `SetWindowPos` with `SWP_NOACTIVATE | SWP_NOZORDER`.
+*   **Configuration:** The configuration file `config.json` is loaded and saved relative to the directory containing the running executable.
 
 ## 7. Exit & Safety
 *   **Trigger:** `Ctrl + Alt + F10` activates the movement session for the current foreground window.
@@ -66,7 +66,7 @@ win-glide is a high-performance Windows utility for rapid, momentum-based window
     *   **`Alt` + Arrow Key:** Shrink (Pull In) window inward from the matching edge.
     *   **Arrow Key (No Modifiers):** Standard translation/movement physics.
 *   **Speed Control:** Configurable via root-level `resize_speed` parameter in `config.json` (defaults to `600.0` pixels per second).
-*   **Movement Model:** Step-based accumulation using `width_f32` and `height_f32` fields on the `App` struct. Step size is calculated as `step = resize_speed * dt` to remain frame-rate independent.
+*   **Movement Model:** Continuous momentum-based resizing physics utilizing a dedicated `resize_physics` simulation configured around `resize_speed`. Coordinate and scale updates are accumulated frame-rate independently using `width_f32` and `height_f32` fields on the `App` struct.
 *   **Safety Guards:**
     *   **Minimum Size Floor:** Hardcoded minimum dimensions of 350x350px, dynamically scaled by the target window's DPI factor.
     *   **Work Area Limits:** Resizing expansion cannot push the window bounds outside the nearest monitor's work area.
@@ -75,4 +75,3 @@ win-glide is a high-performance Windows utility for rapid, momentum-based window
 *   **Input Layer:** Keyboard hook `keyboard_proc` does not consume `VK_MENU` or `VK_SHIFT` to prevent stuck modifier keys. Main loop checks modifier states using `GetAsyncKeyState`.
 *   **UI Synchronization:** Coordinated update of the window and overlay in a single `BeginDeferWindowPos` transaction.
 *   **Optimization:** Redraw the overlay tint via `tiny-skia` only when target window's integer width or height changes.
-
