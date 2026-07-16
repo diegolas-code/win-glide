@@ -61,11 +61,8 @@
     - **Help Text Contrast enhancement**: Implemented a padded, rounded rectangle filled with a 10% black color block (`0, 0, 0` at `25` alpha) drawn directly onto the backing DIB section via `tiny-skia` before text composition. This significantly improves legibility on light/complex windows.
 
 ## Immediate Next Steps
-- **Phase 10d: Stability & Codebase Review Fixes**
-    - Implement defensive activation checks in `App::process_events` to prevent crash panics on rejected windows.
-    - Update `Overlay::prepare_surface` and `Overlay::redraw` to accept the window DPI from `App::dpi` directly, removing GDI calls in the loop.
-    - Update `Config::load` and `Config::save` to resolve the `config.json` path next to the running executable binary.
-    - Align comments, `README.md`, and `SPEC.md` to reflect continuous resizing physics.
+- **Phase 10e: Overlay Resize Smoothness**
+    - Implement integer bounds gating and remove redundant `DeferWindowPos` inside `App::apply_continuous_resize`.
 - **Phase 11: Productization (The Road to v1.0.0)**
     - Create a release-optimized build profile.
     - Implement a system tray icon for easy exit and status visibility.
