@@ -6,7 +6,6 @@
 use crate::physics::PhysicsConfig;
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::Path;
 
 /// Root configuration structure.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -113,15 +112,25 @@ impl Default for Config {
     }
 }
 
+fn get_config_path() -> std::path::PathBuf {
+    std::env::current_exe()
+        .map(|p| {
+            p.parent()
+                .map(|parent| parent.join("config.json"))
+                .unwrap_or_else(|| std::path::PathBuf::from("config.json"))
+        })
+        .unwrap_or_else(|_| std::path::PathBuf::from("config.json"))
+}
+
 impl Config {
     /// Loads the configuration from `config.json`.
     ///
     /// If the file does not exist, it creates it with default values.
     /// If parsing fails, it returns the default configuration.
     pub fn load() -> Self {
-        let path = Path::new("config.json");
+        let path = get_config_path();
         if path.exists() {
-            match fs::read_to_string(path) {
+            match fs::read_to_string(&path) {
                 Ok(content) => match serde_json::from_str::<Self>(&content) {
                     Ok(config) => return config,
                     Err(e) => eprintln!("Error parsing config.json: {:?}. Using defaults.", e),
@@ -140,8 +149,9 @@ impl Config {
 
     /// Persists the current configuration to `config.json`.
     pub fn save(&self) -> Result<(), Box<dyn std::error::Error>> {
+        let path = get_config_path();
         let content = serde_json::to_string_pretty(self)?;
-        fs::write("config.json", content)?;
+        fs::write(path, content)?;
         Ok(())
     }
 }
