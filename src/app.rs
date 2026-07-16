@@ -157,9 +157,9 @@ impl App {
                 let current_modifiers = (is_shift_down, is_alt_down);
                 if current_modifiers != self.last_modifiers_state {
                     self.last_modifiers_state = current_modifiers;
-                    let _ = self
-                        .overlay
-                        .redraw(self.window_rect, is_shift_down, is_alt_down);
+                    let _ =
+                        self.overlay
+                            .redraw(self.window_rect, self.dpi, is_shift_down, is_alt_down);
                 }
 
                 if self.is_resizing_active() {
@@ -281,7 +281,9 @@ impl App {
                         self.overlay
                             .set_owner(self.active_window.expect("No active window"));
                         // Redraw overlay without modifiers
-                        let _ = self.overlay.redraw(self.window_rect, false, false);
+                        let _ = self
+                            .overlay
+                            .redraw(self.window_rect, self.dpi, false, false);
                         self.last_sent_rect = self.window_rect;
                         // Show overlay after redraw
                         self.overlay.show(true);
@@ -485,7 +487,9 @@ impl App {
                     // Setup the overlay to "tint" the target window.
                     self.overlay.set_owner(hwnd);
                     // Redraw overlay without modifiers
-                    let _ = self.overlay.redraw(self.window_rect, false, false);
+                    let _ = self
+                        .overlay
+                        .redraw(self.window_rect, self.dpi, false, false);
                     self.last_sent_rect = self.window_rect;
                     // Show overlay after redraw
                     self.overlay.show(true);
@@ -733,7 +737,7 @@ impl App {
             // Pre-render the overlay content
             let prepared_surface =
                 self.overlay
-                    .prepare_surface(new_rect, is_shift_down, is_alt_down);
+                    .prepare_surface(new_rect, self.dpi, is_shift_down, is_alt_down);
 
             // Apply changes ONLY to overlay window in a single transaction (deleting target DeferWindowPos)
             unsafe {
@@ -865,7 +869,7 @@ impl App {
                             != (old_rect.bottom - old_rect.top);
 
                     if size_changed {
-                        let _ = self.overlay.redraw(actual_rect, false, false);
+                        let _ = self.overlay.redraw(actual_rect, self.dpi, false, false);
                     } else {
                         let _ = self.overlay.update_position(actual_rect);
                     }
