@@ -372,6 +372,7 @@ impl Overlay {
     pub fn prepare_surface(
         &self,
         rect: RECT,
+        dpi: u32,
         is_shift_down: bool,
         is_alt_down: bool,
     ) -> Option<PreparedOverlaySurface> {
@@ -462,16 +463,6 @@ impl Overlay {
                     );
                 }
 
-                // Get actual DPI to scale arrows correctly
-                let dpi = {
-                    let screen_dc = windows::Win32::Graphics::Gdi::GetDC(None);
-                    let res = windows::Win32::Graphics::Gdi::GetDeviceCaps(
-                        screen_dc,
-                        windows::Win32::Graphics::Gdi::LOGPIXELSX,
-                    );
-                    windows::Win32::Graphics::Gdi::ReleaseDC(None, screen_dc);
-                    res as u32
-                };
                 let dpi_scale = dpi as f32 / 96.0;
                 let arrow_size = 36.0 * dpi_scale;
                 let margin = 30.0 * dpi_scale;
@@ -554,15 +545,6 @@ impl Overlay {
 
             // --- Draw Help Text ---
             // Calculate margins & sizes for text safe bounding box
-            let dpi = {
-                let screen_dc = windows::Win32::Graphics::Gdi::GetDC(None);
-                let res = windows::Win32::Graphics::Gdi::GetDeviceCaps(
-                    screen_dc,
-                    windows::Win32::Graphics::Gdi::LOGPIXELSX,
-                );
-                windows::Win32::Graphics::Gdi::ReleaseDC(None, screen_dc);
-                res as u32
-            };
             let dpi_scale = dpi as f32 / 96.0;
             let arrow_size = 36.0 * dpi_scale;
             let margin = 30.0 * dpi_scale;
@@ -794,10 +776,11 @@ impl Overlay {
     pub fn redraw(
         &self,
         rect: RECT,
+        dpi: u32,
         is_shift_down: bool,
         is_alt_down: bool,
     ) -> windows::core::Result<()> {
-        if let Some(prepared) = self.prepare_surface(rect, is_shift_down, is_alt_down) {
+        if let Some(prepared) = self.prepare_surface(rect, dpi, is_shift_down, is_alt_down) {
             self.commit_surface(prepared, rect)
         } else {
             Ok(())
@@ -933,7 +916,7 @@ mod tests {
             right: 150,
             bottom: 150,
         };
-        let prepared_small = overlay.prepare_surface(small_rect, true, false);
+        let prepared_small = overlay.prepare_surface(small_rect, 96, true, false);
         assert!(prepared_small.is_some());
         let surf = prepared_small.unwrap();
         assert_eq!(surf.width, 50);
@@ -946,14 +929,14 @@ mod tests {
             right: 500,
             bottom: 500,
         };
-        let prepared_large = overlay.prepare_surface(large_rect, true, false);
+        let prepared_large = overlay.prepare_surface(large_rect, 96, true, false);
         assert!(prepared_large.is_some());
         let surf_large = prepared_large.unwrap();
         assert_eq!(surf_large.width, 400);
         assert_eq!(surf_large.height, 400 + OVERLAY_TOP_EXTENSION);
 
         // Case 3: Window rect is large enough to draw default help text (no modifiers)
-        let prepared_default = overlay.prepare_surface(large_rect, false, false);
+        let prepared_default = overlay.prepare_surface(large_rect, 96, false, false);
         assert!(prepared_default.is_some());
         let surf_default = prepared_default.unwrap();
         assert_eq!(surf_default.width, 400);
@@ -972,18 +955,18 @@ mod tests {
         };
 
         // Frame 1: uses Buffer A
-        let prepared1 = overlay.prepare_surface(rect1, false, false).unwrap();
+        let prepared1 = overlay.prepare_surface(rect1, 96, false, false).unwrap();
         let dc_a = prepared1.mem_dc;
         overlay.commit_surface(prepared1, rect1).unwrap(); // swaps to Buffer B
 
         // Frame 2: uses Buffer B
-        let prepared2 = overlay.prepare_surface(rect1, false, false).unwrap();
+        let prepared2 = overlay.prepare_surface(rect1, 96, false, false).unwrap();
         let dc_b = prepared2.mem_dc;
         assert_ne!(dc_a, dc_b, "Double buffering should return alternating DCs");
         overlay.commit_surface(prepared2, rect1).unwrap(); // swaps back to Buffer A
 
         // Frame 3: uses Buffer A again
-        let prepared3 = overlay.prepare_surface(rect1, false, false).unwrap();
+        let prepared3 = overlay.prepare_surface(rect1, 96, false, false).unwrap();
         assert_eq!(prepared3.mem_dc, dc_a, "Third frame should reuse Buffer A");
 
         // Smaller dimensions should hit capacity cache (not trigger reallocation)
@@ -995,7 +978,9 @@ mod tests {
         };
         // Currently we are on Buffer A. We commit it -> swaps to Buffer B.
         overlay.commit_surface(prepared3, rect1).unwrap();
-        let prepared_small = overlay.prepare_surface(rect_small, false, false).unwrap();
+        let prepared_small = overlay
+            .prepare_surface(rect_small, 96, false, false)
+            .unwrap();
         assert_eq!(
             prepared_small.mem_dc, dc_b,
             "DC should be re-used when dimensions are smaller than cache capacity"
@@ -1009,7 +994,9 @@ mod tests {
             right: 700,
             bottom: 700,
         };
-        let prepared_large = overlay.prepare_surface(rect_large, false, false).unwrap();
+        let prepared_large = overlay
+            .prepare_surface(rect_large, 96, false, false)
+            .unwrap();
         let dc_large_a = prepared_large.mem_dc;
         assert_ne!(
             dc_large_a, dc_a,
