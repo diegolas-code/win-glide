@@ -275,16 +275,20 @@ impl App {
                     println!("Hotkey triggered (ID: {})", id);
                     if id == 1337 {
                         self.activate_session();
-                        crate::input::set_session_active(true);
+                        if let Some(active_hwnd) = self.active_window {
+                            crate::input::set_session_active(true);
 
-                        // Setup the overlay to "tint" the target window.
-                        self.overlay
-                            .set_owner(self.active_window.expect("No active window"));
-                        // Redraw overlay without modifiers
-                        let _ = self.overlay.redraw(self.window_rect, false, false);
-                        self.last_sent_rect = self.window_rect;
-                        // Show overlay after redraw
-                        self.overlay.show(true);
+                            // Setup the overlay to "tint" the target window.
+                            self.overlay.set_owner(active_hwnd);
+                            // Redraw overlay without modifiers
+                            let _ = self.overlay.redraw(self.window_rect, false, false);
+                            self.last_sent_rect = self.window_rect;
+                            // Show overlay after redraw
+                            self.overlay.show(true);
+                        } else {
+                            // If activation failed, ensure the input hooks are not active.
+                            crate::input::set_session_active(false);
+                        }
                     } else if id == 1338 {
                         let target_hwnd = if let Some(active) = self.active_window {
                             active
