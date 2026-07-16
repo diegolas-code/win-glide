@@ -159,7 +159,7 @@
 - [x] Synchronize and align documentation to describe continuous momentum-based resizing physics
 
 ## Phase 10e: Overlay Resize Smoothness
-- [ ] Fix overlay resizing blockiness (gate GDI redraws by rounded bounds changes and remove redundant DeferWindowPos)
+- [x] Fix overlay resizing blockiness (gate GDI redraws by rounded bounds changes and remove redundant DeferWindowPos)
 
 ## Phase 11: Productization (The Road to v1.0.0)
 - [ ] Create a release-optimized build profile
