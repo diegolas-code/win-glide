@@ -156,7 +156,7 @@
 - [x] Fix activation hotkey panic on rejected windows (prevent crashes when hotkey is pressed on excluded/maximized/elevated windows)
 - [x] Pass target window DPI directly to overlay rendering (eliminate `GetDC` / `GetDeviceCaps` in the loop)
 - [x] Resolve config.json file path relative to executable location (avoid current working directory issues)
-- [ ] Synchronize and align documentation to describe continuous momentum-based resizing physics
+- [x] Synchronize and align documentation to describe continuous momentum-based resizing physics
 
 ## Phase 11: Productization (The Road to v1.0.0)
 - [ ] Create a release-optimized build profile
