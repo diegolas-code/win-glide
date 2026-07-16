@@ -1,16 +1,16 @@
 {
   "physics": {
-    "acceleration": 2600.0,
+    "acceleration": 2860.0,
     "friction": 11.0,
     "thrust_friction": 0.5,
-    "top_speed": 2250.0
+    "top_speed": 2475.0
   },
-  "resize_speed": 600.0,
+  "resize_speed": 660.0,
   "resize_physics": {
-    "acceleration": 3000.0,
+    "acceleration": 3300.0,
     "friction": 15.0,
     "thrust_friction": 0.5,
-    "top_speed": 1500.0
+    "top_speed": 1650.0
   },
   "hotkey": {
     "modifiers": 3,
