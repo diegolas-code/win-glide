@@ -54,7 +54,7 @@ Upon first run, `win-glide` generates a `config.json` in the application directo
   }
 }
 ```
-*Note: Acceleration and top speed are in pixels per second. The `resize_speed` field controls the pixels resized per step (Default: 600.0). Modifiers (Default: Ctrl+Alt) and Virtual Key (vk) codes follow Win32 standards.*
+*Note: Acceleration and top speed are in pixels per second. The `resize_speed` field controls the base speed of continuous resizing (Default: 600.0). You can optionally define a `resize_physics` block in `config.json` (similar to the translation `physics` block) for custom resizing momentum and friction; if omitted, resize physics values are computed proportionally based on `resize_speed`. Modifiers (Default: Ctrl+Alt) and Virtual Key (vk) codes follow Win32 standards.*
 
 ## Build & Run Requirements
 This project targets Windows 10/11 on x86_64 and needs:
