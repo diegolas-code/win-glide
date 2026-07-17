@@ -1,12 +1,6 @@
 # win-glide
 
-win-glide is a high-performance Windows utility designed for rapid, momentum-based window repositioning using keyboard arrow keys. It prioritizes tactile feedback, precision, and a "snappy yet light" physics model, allowing you to "glide" windows across your desktop with ease.
-
-## Current Status
-- **Stable core app:** Keyboard glide, monitor-aware centering, and overlay sync are implemented and passing tests.
-- **Overlay resize smoothing:** Resize previews now redraw only when rounded bounds change, which removes redundant overlay churn and makes the resize path feel noticeably smoother.
-- **Active feature set:** The app currently supports continuous glide movement, one-shot centering, and continuous overlay-based resize previews with ghost-resize commit at the end of the gesture.
-- **Next phase:** The remaining roadmap is productization work such as a tray icon, installer, release build profile, and final v1.0.0 documentation polish.
+**`win-glide`** is a high-performance Windows utility designed for rapid, momentum-based window repositioning using keyboard arrow keys. It prioritizes tactile feedback, precision, and a "snappy yet light" physics model, allowing you to "glide" windows across your desktop with ease.
 
 ## Core Features
 - **Fluid Keyboard Movement:** Move active windows using arrow keys with high-precision acceleration and friction, powered by a 120Hz physics loop.
