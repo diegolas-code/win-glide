@@ -24,7 +24,7 @@ pub struct Config {
 }
 
 fn default_resize_speed() -> f32 {
-    600.0
+    660.0
 }
 
 /// Structure for defining the activation hotkey.
@@ -96,7 +96,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             physics: PhysicsConfig::default(),
-            resize_speed: 600.0,
+            resize_speed: 660.0,
             hotkey: HotkeyConfig {
                 // Default to Ctrl + Alt + F10
                 modifiers: 0x0002 | 0x0001, // MOD_CONTROL | MOD_ALT
@@ -107,7 +107,12 @@ impl Default for Config {
                 modifiers: 0x0008 | 0x0001, // MOD_WIN | MOD_ALT
                 vk: 0x43,                   // C
             },
-            resize_physics: None,
+            resize_physics: Some(PhysicsConfig {
+                acceleration: 3300.0,
+                friction: 15.0,
+                thrust_friction: 0.5,
+                top_speed: 1650.0,
+            }),
         }
     }
 }
