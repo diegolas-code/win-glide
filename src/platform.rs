@@ -159,7 +159,11 @@ mod tests {
     fn test_get_dpi_for_window() {
         let hwnd = unsafe { GetForegroundWindow() };
         let dpi = Platform::get_dpi_for_window(hwnd);
-        assert!(dpi > 0);
+        if hwnd.0.is_null() {
+            assert_eq!(dpi, 0);
+        } else {
+            assert!(dpi > 0);
+        }
     }
 
     #[test]
