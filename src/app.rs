@@ -586,18 +586,37 @@ impl App {
             let vs = Platform::get_virtual_screen_rect();
             let min_visible = 150;
 
-            if new_rect.left < vs.left - width + min_visible {
-                new_rect.left = vs.left - width + min_visible;
-            } else if new_rect.left > vs.right - min_visible {
-                new_rect.left = vs.right - min_visible;
+            let min_x = (vs.left - width + min_visible) as f32;
+            let max_x = (vs.right - min_visible) as f32;
+            let min_y = (vs.top - height + min_visible) as f32;
+            let max_y = (vs.bottom - min_visible) as f32;
+
+            if self.pos_x < min_x {
+                self.pos_x = min_x;
+                if self.physics.velocity.x < 0.0 {
+                    self.physics.velocity.x = 0.0;
+                }
+            } else if self.pos_x > max_x {
+                self.pos_x = max_x;
+                if self.physics.velocity.x > 0.0 {
+                    self.physics.velocity.x = 0.0;
+                }
             }
 
-            if new_rect.top < vs.top - height + min_visible {
-                new_rect.top = vs.top - height + min_visible;
-            } else if new_rect.top > vs.bottom - min_visible {
-                new_rect.top = vs.bottom - min_visible;
+            if self.pos_y < min_y {
+                self.pos_y = min_y;
+                if self.physics.velocity.y < 0.0 {
+                    self.physics.velocity.y = 0.0;
+                }
+            } else if self.pos_y > max_y {
+                self.pos_y = max_y;
+                if self.physics.velocity.y > 0.0 {
+                    self.physics.velocity.y = 0.0;
+                }
             }
 
+            new_rect.left = self.pos_x.round() as i32;
+            new_rect.top = self.pos_y.round() as i32;
             new_rect.right = new_rect.left + width;
             new_rect.bottom = new_rect.top + height;
 
