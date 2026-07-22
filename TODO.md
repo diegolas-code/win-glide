@@ -161,6 +161,9 @@
 ## Phase 10e: Overlay Resize Smoothness
 - [x] Fix overlay resizing blockiness (gate GDI redraws by rounded bounds changes and remove redundant DeferWindowPos)
 
+## Phase 10f: Boundary Distance Accumulation Fix
+- [ ] Fix boundary distance accumulation (clamp float accumulators and zero collision velocity at screen boundaries)
+
 ## Phase 11: Productization (The Road to v1.0.0)
 - [ ] Create a release-optimized build profile
 - [ ] Implement a system tray icon for easy exit and status visibility
