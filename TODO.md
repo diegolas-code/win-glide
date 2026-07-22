@@ -162,7 +162,7 @@
 - [x] Fix overlay resizing blockiness (gate GDI redraws by rounded bounds changes and remove redundant DeferWindowPos)
 
 ## Phase 10f: Boundary Distance Accumulation Fix
-- [ ] Fix boundary distance accumulation (clamp float accumulators and zero collision velocity at screen boundaries)
+- [x] Fix boundary distance accumulation (clamp float accumulators and zero collision velocity at screen boundaries)
 
 ## Phase 11: Productization (The Road to v1.0.0)
 - [ ] Create a release-optimized build profile

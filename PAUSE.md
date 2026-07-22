@@ -61,8 +61,6 @@
     - **Help Text Contrast enhancement**: Implemented a padded, rounded rectangle filled with a 10% black color block (`0, 0, 0` at `25` alpha) drawn directly onto the backing DIB section via `tiny-skia` before text composition. This significantly improves legibility on light/complex windows.
 
 ## Immediate Next Steps
-- **Phase 10f: Boundary Distance Accumulation Fix**
-    - Implement float accumulator clamping and zero collision velocity in `App::apply_movement`.
 - **Phase 11: Productization (The Road to v1.0.0)**
     - Create a release-optimized build profile.
     - Implement a system tray icon for easy exit and status visibility.
